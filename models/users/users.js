@@ -18,6 +18,10 @@ const authSchema = new mongoose.Schema({
     },
     otherLanguage : {
         type : String,
+    }, 
+    passcode : {
+        type : String,
+        required : true
     }
   
 });
