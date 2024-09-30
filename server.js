@@ -17,9 +17,11 @@ const port = 4000;
 
 // Middleware
 app.use(cors({
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin: '*', // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow all standard methods
+    allowedHeaders: '*', // Allow all headers
 }));
+
 app.use(bodyParser.json());
 
 // Database connection
