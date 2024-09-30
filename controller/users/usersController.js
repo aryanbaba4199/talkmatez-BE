@@ -9,6 +9,7 @@ exports.createUser = async (req, res, next) => {
     const { formData } = req.body;
     try {
         const exisitingUser = await User.findOne({ mobile: formData.mobile });
+       
         if (exisitingUser) {
             res.status(201).json({ message: "User Already Registered" });
         } else {
@@ -17,7 +18,7 @@ exports.createUser = async (req, res, next) => {
             const token = jwt.sign({
                 userId : user._id, mobile : user.mobile
             }, jwtKey, {expiresIn : `${24*30}h`})
-            res.status(200).json(token);
+            res.status(200).json({token : token, user : user});
         }
     } catch (err) {
         console.error(err);
