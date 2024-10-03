@@ -1,15 +1,16 @@
 const Agora = require('agora-access-token'); 
 const express = require('express');
 const router = express.Router();
+require('dotenv').config();
 
-// Use your actual Agora App ID and certificate
-const appId = '3523a8db9d994052bc9c3ba39d051bba'; // Replace with your Agora App ID
-const certificate = '3523a8db9d994052bc9c3ba39d051bba'; 
+
+const appId = process.env.AGORA_APP_ID;
+const certificate = process.env.AGORA_CERTIFICATE;  
 
 const tokenExpiry = 3600; 
 const role = Agora.RtcRole.PUBLISHER; 
 
-// Token generation route
+
 router.get('/', (req, res) => {
   const currentTime = Math.floor(Date.now() / 1000); 
   const expiry = currentTime + tokenExpiry; 
@@ -22,7 +23,6 @@ router.get('/', (req, res) => {
       return res.status(400).json({ error: 'Channel and UID are required' });
     }
 
-    // Generate the Agora token using the channel and UID
     const token = Agora.RtcTokenBuilder.buildTokenWithUid(
       appId, 
       certificate, 
