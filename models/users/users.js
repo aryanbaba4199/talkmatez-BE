@@ -22,6 +22,36 @@ const authSchema = new mongoose.Schema({
     passcode : {
         type : String,
         required : true
+    }, 
+    balance : {
+        type : Number,
+        default :0
+    },
+
+    // for Tutors  
+    userType : {
+        type : String,
+        default : 'user',
+    },
+    qualification : {
+        type : String
+    }, 
+    rate : {
+        type : Number
+    },
+    jobType : {
+        type : String,
+        default : 'freelancer'
+    }, 
+    description : {
+        type : String
+    },
+    tutorStatus : {
+        type : String,
+        default : 'offline'
+    },
+    rating : {
+       type :  []
     }
   
 });

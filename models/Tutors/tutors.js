@@ -19,7 +19,6 @@ const tutorSchema = new mongoose.Schema({
     },
     subject : {
         type : String,
-        require : true
     },
     experience : {
         type : String,
@@ -34,7 +33,7 @@ const tutorSchema = new mongoose.Schema({
     status : {
         type : String,
         require : true,
-        default : 'OFFLINE'
+        default : 'offline'
     }, 
     tutorType : {
         type : String,
@@ -50,7 +49,6 @@ const tutorSchema = new mongoose.Schema({
     },
     greet : {
         type : String,
-        require : true,
     }
 });
 

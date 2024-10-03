@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "agora-access-token": "^2.0.4",
     "backend": "file:",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",

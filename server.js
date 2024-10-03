@@ -7,6 +7,7 @@ const errorHandler = require('./middleware/errorHandler');
 const helpers = require('./routes/helpersRoutes');
 const Tutors = require('./routes/tutorsRoute');
 const GetLanguages = require('./routes/admin');
+const GenerateToken = require('./controller/generateAgoraToken')
 const userRoutes = require('./routes/userRoutes');
 // const { startWebSocketServer } = require('./controller/webSocket');
 
@@ -32,6 +33,7 @@ app.use('/helpers', helpers);
 app.use('/tutors', Tutors);
 app.use('/users', userRoutes)
 app.use("/admin/helpers", GetLanguages);
+app.use('/generateToken', GenerateToken);
 
 // Error handling middleware
 app.use(errorHandler);
