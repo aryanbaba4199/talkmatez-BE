@@ -11,9 +11,8 @@ const tutorSchema = new mongoose.Schema({
     }, 
     image : {
         type : String,
-        require : true,
     },
-    mobile : {
+    email : {
         require : true,
         type : String
     },
