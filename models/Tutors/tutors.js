@@ -5,6 +5,9 @@ const tutorSchema = new mongoose.Schema({
         type : String,
         require : true
     }, 
+    tutorId : {
+        type : String,
+    },
     qualification : {
         require : true,
         type : String
