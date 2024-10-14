@@ -40,20 +40,21 @@ io.on("connection", (socket) => {
   });
 
   // Start a call between a tutor and a user
-  socket.on("start_call", ({ tutorId, userId }) => {
-    const tutorSocketId = tutorSocketMap[tutorId];
+  socket.on("start_call", ({data}) => {
+    console.log('tutorId is',data.tutorId);
+    const tutorSocketId = tutorSocketMap[data.tutorId];
     
     if (tutorSocketId) {
-      console.log(`Call from user ${userId} to tutor ${tutorId} with socket ID: ${tutorSocketId}`);
-      const data = {userId : userId, tutorId : tutorId};
-      socket.broadcast.emit('call_started', {userId : tutorId}); 
+      console.log(`Call from user ${data.userId} to tutor ${data.tutorId} with socket ID: ${tutorSocketId}`);
+      
+      socket.broadcast.emit('call_started', data); 
       // // Notify the tutor of the incoming call
       // io.to(tutorSocketId).emit("incoming_call", { userId });
 
       // Log that the event was successfully emitted
-      console.log(`Incoming call event sent to tutor ${tutorId} (socket ID: ${tutorSocketId})`);
+      console.log(`Incoming call event sent to tutor ${data.tutorId} (socket ID: ${tutorSocketId})`);
     } else {
-      console.log(`Tutor ${tutorId} or User ${userId} is not online.`);
+      console.log(`Tutor ${data.tutorId} or User ${data.userId} is not online.`);
       
       // Notify the user that the tutor is unavailable
       socket.emit("error", { message: "Tutor is not available." });
@@ -63,17 +64,8 @@ io.on("connection", (socket) => {
   // End the call between a tutor and a user
   socket.on("end_call", ({ tutorId, userId }) => {
     console.log(`Call ended between tutor ${tutorId} and user ${userId}`);
-
-    const userSocketId = userSocketMap[userId];
-    const tutorSocketId = tutorSocketMap[tutorId];
-
-    // Notify both parties that the call has ended
-    if (userSocketId) {
-      io.to(userSocketId).emit("call_ended", { tutorId });
-    }
-    if (tutorSocketId) {
-      io.to(tutorSocketId).emit("call_ended", { userId });
-    }
+    data = {userId, tutorId}
+    socket.broadcast.emit('call_ended', data);
   });
 
   // Decline the call
