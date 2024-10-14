@@ -62,10 +62,10 @@ io.on("connection", (socket) => {
   });
 
   // End the call between a tutor and a user
-  socket.on("end_call", ({ tutorId, userId }) => {
-    console.log(`Call ended between tutor ${tutorId} and user ${userId}`);
-    data = {userId, tutorId}
-    socket.broadcast.emit('call_ended', data);
+  socket.on("end_call", ({userId}) => {
+    console.log(`Call ended between `);
+    
+    socket.broadcast.emit('call_ended', userId);
   });
 
   // Decline the call
