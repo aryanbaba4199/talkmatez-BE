@@ -51,6 +51,9 @@ const tutorSchema = new mongoose.Schema({
     },
     greet : {
         type : String,
+    }, 
+    fcmToken : {
+        type : String,
     }
 });
 

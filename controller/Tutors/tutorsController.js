@@ -83,3 +83,31 @@ exports.login = async (req, res, next) => {
       next(e);
     }
   };
+
+  exports.updateToken = async (req, res, next) => {
+    const { token, tutorId } = req.body; // Extract token and tutorId from request body
+    console.log(token, tutorId)
+
+    if (!token || !tutorId) {
+        return res.status(400).json({ message: 'Token and tutorId are required' });
+    }
+
+    try {
+        // Update the fcmToken for the specified tutor
+        const updatedTutor = await Tutors.findOneAndUpdate(
+            { _id : tutorId }, // Find tutor by tutorId
+            { fcmToken: token }, // Update the fcmToken field
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedTutor) {
+            return res.status(404).json({ message: 'Tutor not found' });
+        }
+
+        console.log(`Token updated for tutor: ${tutorId}`);
+        res.status(200).json({ message: 'Token updated successfully' });
+    } catch (error) {
+        console.error('Error updating token:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};

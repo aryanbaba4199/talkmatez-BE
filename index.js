@@ -1,6 +1,19 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const admin = require("firebase-admin");
+const serviceAccount = require("./models/talkmatez-f8850-firebase-adminsdk-aqirh-d4ba80d895.json");
+const Tutors = require("./models/Tutors/tutors");
+
+const db  = require("./Database/db");
+
+db(); 
+
+
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -10,8 +23,22 @@ const io = new Server(server, {
   },
 });
 
-const tutorSocketMap = {}; // Mapping of tutorId -> socket.id
-const userSocketMap = {}; // Mapping of userId -> socket.id
+const tutorSocketMap = {};
+const userSocketMap = {}; 
+
+async function getTutorFcmToken(tutorId) {
+  console.log('finding tutor : ',   tutorId)
+  const tutor = await Tutors.findOne({_id : tutorId})
+  if(tutor){
+    return tutor.fcmToken;
+  }else{
+    console.log('NO token found')
+    return null;
+  }
+  
+}
+
+
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -40,42 +67,65 @@ io.on("connection", (socket) => {
   });
 
   // Start a call between a tutor and a user
-  socket.on("start_call", ({data}) => {
+  socket.on("start_call", async({data}) => {
     console.log('tutorId is',data.tutorId);
     const tutorSocketId = tutorSocketMap[data.tutorId];
     
     if (tutorSocketId) {
-      console.log(`Call from user ${data.userId} to tutor ${data.tutorId} with socket ID: ${tutorSocketId}`);
       
       socket.broadcast.emit('call_started', data); 
-      // // Notify the tutor of the incoming call
-      // io.to(tutorSocketId).emit("incoming_call", { userId });
-
-      // Log that the event was successfully emitted
-      console.log(`Incoming call event sent to tutor ${data.tutorId} (socket ID: ${tutorSocketId})`);
+    
     } else {
-      console.log(`Tutor ${data.tutorId} or User ${data.userId} is not online.`);
-      
-      // Notify the user that the tutor is unavailable
-      socket.emit("error", { message: "Tutor is not available." });
+      // Tutor is offline, send FCM notification
+      const tutorFcmToken = await getTutorFcmToken(data.tutorId);
+      console.log('tutorFcmToken is', tutorFcmToken);
+      if (tutorFcmToken) {
+        console.log('tutorFcmToken is', tutorFcmToken);
+        
+        const message = {
+          token: tutorFcmToken,
+          notification: {
+            title: "Incoming Call",
+            body: `You have an incoming call from ${data.userId}`,
+          },
+          data: {
+            agoraToken: `${data?.agoraToken}`,
+            channelName: `${data?.channelName}`,
+            userId: `${data?.userId}`,
+          },
+        };
+
+        try {
+          await admin.messaging().send(message);
+          console.log("FCM notification sent to tutor:", data.tutorId);
+        } catch (error) {
+          console.error("Error sending FCM notification:", error);
+        }
+      } else {
+        console.error(`No FCM token found for tutor ${data.tutorId}`);
+      }
     }
   });
 
   // End the call between a tutor and a user
   socket.on("end_call", ({data}) => {
-    console.log(`Call ended between ${data.userId} & ${data.tutorId} `);
+    const tutorSocketId = tutorSocketMap[data.tutorId];
+    if(tutorSocketId){
+      socket.broadcast.emit('call_ended', data);
+    }
+    console.log(`Call ended between ${data?.userId} & ${data?.tutorId} `);
      
-    socket.broadcast.emit('call_ended', data);
+    
   });
 
   // Decline the call
-  socket.on("decline_call", ({ tutorId, userId }) => {
-    console.log(`Call declined by tutor ${tutorId}`);
+  socket.on("decline_call", ({data}) => {
+    console.log(`Call declined by tutor`);
     
     // Notify the user that the call was declined
-    const userSocketId = userSocketMap[userId];
+    const userSocketId = userSocketMap[data?.userId];
     if (userSocketId) {
-      io.to(userSocketId).emit("call_ended", { tutorId });
+      socket.broadcast.emit('call_declined', data);
     }
   });
 
