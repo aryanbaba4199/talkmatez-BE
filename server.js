@@ -43,6 +43,10 @@ app.use('/tutors', TutorsRoute);
 app.use('/users', userRoutes)
 app.use("/admin/helpers", GetLanguages);
 app.use('/generateToken', GenerateToken);
+app.get("/", (req, res) => {
+    res.status(200).send("Talkmatez Service is running!");
+  });
+  
 
 // Error handling middleware
 app.use(errorHandler);
