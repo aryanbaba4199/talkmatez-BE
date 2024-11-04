@@ -44,6 +44,10 @@ const tutorSchema = new mongoose.Schema({
     rating : {
         type : []
     },
+    coins : {
+        type : Number,
+        default : 0
+    }, 
     rate : {
         type : Number,
         require : true, 

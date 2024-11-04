@@ -1,3 +1,4 @@
+const Tutors = require("../../models/Tutors/tutors");
 const User = require("../../models/users/users");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -99,3 +100,22 @@ exports.updateUser = async(req, res, next) => {
     next(err);
   }
 };
+
+exports.uNtDetails = async(req, res, next)=>{
+  
+  const {userId, tutorId} = req.body;
+  
+  if(!userId && !tutorId){
+    return res.status(400).json({message : '!userId or TutorId'})
+  }
+  try{
+    const user = await User.findById({_id : userId})
+  const tutor = await Tutors.findById({_id : tutorId})
+  res.status(200).json({user, tutor})
+  }catch(err){
+    console.error(err);
+    next(err);
+  }
+
+  
+}

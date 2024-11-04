@@ -1,14 +1,22 @@
 const express = require("express");
+const cors = require('cors');
 const http = require("http");
 const { Server } = require("socket.io");
 const admin = require("firebase-admin");
 const serviceAccount = require("./models/talkmatez-f8850-firebase-adminsdk-aqirh-d4ba80d895.json");
 const Tutors = require("./models/Tutors/tutors");
+const errorHandler = require('./middleware/errorHandler');
+const helpers = require('./routes/helpersRoutes');
+const TutorsRoute = require('./routes/tutorsRoute');
+const GetLanguages = require('./routes/admin');
+const GenerateToken = require('./controller/generateAgoraToken')
+const userRoutes = require('./routes/userRoutes');
+const bodyParser = require('body-parser');
 
 const db  = require("./Database/db");
 
 db(); 
-
+require('dotenv').config();
 
 
 admin.initializeApp({
@@ -20,8 +28,24 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "*",
+    allowedHeaders: '*',
   },
 });
+
+app.use(cors({
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow all standard methods
+  allowedHeaders: '*', // Allow all headers
+}));
+app.use(bodyParser.json());
+app.use('/helpers', helpers);
+app.use('/tutors', TutorsRoute);
+app.use('/users', userRoutes)
+app.use("/admin/helpers", GetLanguages);
+app.use('/generateToken', GenerateToken);
+
+// Error handling middleware
+app.use(errorHandler);
 
 const tutorSocketMap = {};
 const userSocketMap = {}; 
@@ -167,6 +191,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(5000, () => {
-  console.log("Server running on port 5000");
+server.listen(4000, () => {
+  console.log("Server running on port 4000");
 });

@@ -16,7 +16,22 @@ const callSchema = new mongoose.Schema({
     secUserId : {
         type: String,
         required: true
-    }
+    }, 
+    tutorStartCoin : {
+        type : Number,
+      
+    }, 
+    tutorEndCoin : {
+        type : Number,
+     
+    }, 
+    studentStartCoin : {
+        type : Number,
+    }, 
+    studentEndCoin : {
+        type : Number,
+    
+    }, 
 })
 
 const CallLogs = mongoose.model('CallLogs', callSchema);
