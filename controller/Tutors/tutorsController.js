@@ -6,7 +6,7 @@ const jwtKey = process.env.JWT_SECRET;
 
 
 exports.createTutor = async (req, res, next) => {
-  const { formData } = req.body;
+  const  formData  = req.body;
   const name = formData.name.split(' ')[0].slice(0, 8).toLowerCase();
   const randomDigit = Math.floor(Math.random() *10000).toString().padStart(4, '0');
   const tutorId = `${name}${randomDigit}`;
@@ -54,8 +54,9 @@ exports.updateTutor = async (req, res, next) => {
 };
 
 exports.login = async (req, res, next) => {
+  console.log('called')
     const { id } = req.params;
-  
+    console.log('id received', id);
     try {
       const tutor = await Tutors.findOne({ tutorId: id });
   
@@ -111,3 +112,24 @@ exports.login = async (req, res, next) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+exports.getTutor = async(req, res)=>{
+ 
+  try{
+    console.log('id is  ');
+    const {id} = req.params;
+   
+    
+    const tutor = await Tutors.findById(id);
+    console.log(`Token retrieved`, tutor);
+    if(tutor){
+      res.status(200).json(tutor);
+    }else{
+      res.status(404).json({message: 'Tutor not found'});
+    }
+  }catch (error){
+    console.log(error)
+    res.status(500).json({ message: ' Server error' });
+  }
+} 
+

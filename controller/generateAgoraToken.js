@@ -19,7 +19,7 @@ router.get('/', (req, res) => {
   const { channel, uid } = req.query; 
 
   try {
-    console.log('Channel:', channel, 'UID:', uid);
+
     
     if (!channel || !uid) {
       return res.status(400).json({ error: 'Channel and UID are required' });

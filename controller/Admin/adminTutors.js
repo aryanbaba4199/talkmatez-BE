@@ -45,3 +45,16 @@ exports.updateTutor = async(req, res, next)=>{
         next(e);
     }
 };
+
+exports.deleteTutor = async(req, res, next)=>{
+    const {id} = req.params;
+    console.log('the id is ', id)
+    try{
+        const tutor = await Tutors.findByIdAndDelete(id);
+        return res.status(200).send({message: 'tutor deleted successfully'});
+    }catch(e){
+        console.error(e);
+        next(e);
+    }
+}
+

@@ -4,11 +4,14 @@ const axios = require("axios");
 const Tutor = require("../../models/Tutors/tutors");
 const Tutors = require("../../models/Tutors/tutors");
 
-exports.CallTiming = async (req, res, next) => {
+
+
+exports.CallTiming = async (req, res) => {
   const formData = req.body;
-  console.log("formData", req.body);
+  
   if (!formData) {
-    return res.status(400);
+    console.error("No form data provided");
+    return;
   }
 
   try {
@@ -18,18 +21,20 @@ exports.CallTiming = async (req, res, next) => {
     );
     const currentTime = timeRes.data.dateTime;
 
+    // Create a new call log with the form data and current start time
     const call = new CallLogs({ ...formData, start: currentTime });
     await call.save();
 
-    res.status(200).json(call);
+    // If this controller is called directly, just return the call data
+    return call;
   } catch (err) {
-    console.log("Error fetching time:", err);
-    next(err);
+    console.error("Error fetching time:", err);
   }
 };
 
+
 exports.updateCallTiming = async (req, res, next) => {
-  const { data } = req.body;
+  const  data  = req.body;
 
   if (!data) {
     console.log("no data found");
@@ -43,28 +48,28 @@ exports.updateCallTiming = async (req, res, next) => {
     );
     const currentTime = timeRes.data.dateTime;
 
-    const startTime = data.startTime.start;
+    const startTime = data.start;
     const callDuration = (new Date(currentTime) - new Date(startTime)) / 1000; // duration in seconds
 
     // Fetch tutor and user by ID to get their current coins and balance
-    const tutor = await Tutors.findById(data.startTime.secUserId);
-    const user = await User.findById(data.startTime.userId);
+    const tutor = await Tutors.findById(data.secUserId);
+    const user = await User.findById(data.userId);
 
     console.log(tutor, user)
     const updatedTutor = await Tutors.findByIdAndUpdate(
-      data.startTime.secUserId,
+      data.secUserId,
       { coins: Math.round(tutor.coins + callDuration) },
       { new: true }
     );
 
     const updatedUser = await User.findByIdAndUpdate(
-      data.startTime.userId,
+      data.userId,
       { coins: Math.round(user.coins - callDuration) },
       { new: true }
     );
 
     const updatedCall = await CallLogs.findByIdAndUpdate(
-      data.startTime._id,
+      data._id,
       {
         end: currentTime,
         tutorEndCoin: updatedTutor.coins,
@@ -75,21 +80,28 @@ exports.updateCallTiming = async (req, res, next) => {
 
     console.log(updatedCall);
 
-    res.status(200).json(updatedCall);
+    return updatedCall
   } catch (err) {
     console.log("Error updating call timing:", err);
-    next(err);
+    res.status(500).json(err);
   }
 };
 
 exports.callDetails = async (req, res, next) => {
-  const { id } = req.params;
+  const { id, page = 1 } = req.params; // Default to page 1 if not provided
+  const limit = 20;
+  const skip = (page - 1) * limit;
+
   try {
-    const logs = await CallLogs.find({ userId: id }).populate({
-      path: "secUserId",
-      model: Tutor,
-      select: "name",
-    });
+    const logs = await CallLogs.find({ userId: id })
+      .populate({
+        path: "secUserId",
+        model: Tutor,
+        select: "name",
+      })
+      .sort({ start: -1 }) // Sort by start time descending to get latest logs
+      .skip(skip)
+      .limit(limit);
 
     if (logs.length > 0) {
       const callDetails = logs.map((log) => ({
@@ -100,15 +112,46 @@ exports.callDetails = async (req, res, next) => {
 
       return res.status(200).json({ callDetails });
     } else {
-      return res
-        .status(404)
-        .json({ message: "No call logs found for this user" });
+      return res.status(404).json({ message: "No call logs found for this user" });
     }
   } catch (err) {
     console.error("Error getting call logs", err);
     next(err);
   }
 };
+
+exports.tutorCalllogs = async (req, res, next) => {
+  const { id, page = 1 } = req.params; // Default to page 1 if not provided
+  const limit = 20;
+  const skip = (page - 1) * limit;
+
+  try {
+    const logs = await CallLogs.find({ secUserId: id })
+      .populate({
+        path: "userId",
+        model: User,
+        select: "name",
+      })
+      .sort({ start: -1 }) // Sort by start time descending to get latest logs
+      .skip(skip)
+      .limit(limit);
+    if (logs.length > 0) {
+      const callDetails = logs.map((log) => ({
+        studentName: log.userId ? log.userId.name : "Unknown Student",
+        start: log.start,
+        end: log.end,
+      }));
+
+      return res.status(200).json({ callDetails });
+    } else {
+      return res.status(404).json({ message: "No call logs found for this user" });
+    }
+  } catch (err) {
+    console.error("Error getting call logs", err);
+    next(err);
+  }
+};
+
 
 exports.fullLogs = async (req, res, next) => {
   try {
