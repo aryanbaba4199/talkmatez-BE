@@ -5,6 +5,17 @@ require("dotenv").config();
 
 const jwtKey = process.env.JWT_SECRET;
 
+exports.getuserbyid = async (req, res, next) => {
+  const { id } = req.params;
+  try{
+    const user = await User.findById(id);
+    res.status(200).json(user);
+  }catch(err){
+    console.error(err);
+    res.status(500).json({message: err.message});
+  }
+}
+
 exports.createUser = async (req, res, next) => {
   const { formData } = req.body;
   try {
