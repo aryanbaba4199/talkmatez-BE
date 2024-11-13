@@ -112,6 +112,30 @@ exports.updateUser = async(req, res, next) => {
   }
 };
 
+exports.updateCoins = async (req, res, next) => {
+  const formData = req.body;
+  console.log(formData);
+  try {
+    // Await the update and get the updated user data
+    const user = await User.findByIdAndUpdate(
+      formData.id, 
+      { coins: formData.coins }, 
+      { new: true }  // Ensures the updated document is returned
+    );
+    console.log(user);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.status(200).json(user);
+  } catch (err) {
+    console.error('Error updating coins:', err);  
+    res.status(500).json({ message: 'Error updating coins' });
+  }
+};
+
+
 exports.uNtDetails = async(req, res, next)=>{
   
   const {userId, tutorId} = req.body;

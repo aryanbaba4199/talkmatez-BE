@@ -58,13 +58,13 @@ exports.updateCallTiming = async (req, res, next) => {
     console.log(tutor, user)
     const updatedTutor = await Tutors.findByIdAndUpdate(
       data.secUserId,
-      { coins: Math.round(tutor.coins + callDuration) },
+      { coins: Math.round(tutor.coins + callDuration-9) },
       { new: true }
     );
 
     const updatedUser = await User.findByIdAndUpdate(
       data.userId,
-      { coins: Math.round(user.coins - callDuration) },
+      { coins: Math.round(user.coins+9 - callDuration) },
       { new: true }
     );
 
