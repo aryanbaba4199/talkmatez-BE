@@ -5,9 +5,6 @@ const tutorSchema = new mongoose.Schema({
         type : String,
         require : true
     }, 
-    tutorId : {
-        type : String,
-    },
     qualification : {
         require : true,
         type : String
@@ -17,7 +14,8 @@ const tutorSchema = new mongoose.Schema({
     },
     email : {
         require : true,
-        type : String
+        type : String, 
+        unique : true
     },
     subject : {
         type : String,
@@ -58,6 +56,15 @@ const tutorSchema = new mongoose.Schema({
     }, 
     fcmToken : {
         type : String,
+    }, 
+    loginId : {
+        type : String,
+        require : true, 
+        unique : true
+    }, 
+    password : {
+        type : String,
+        require : true
     }
 });
 
