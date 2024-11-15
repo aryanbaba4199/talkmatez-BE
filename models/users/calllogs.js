@@ -32,6 +32,14 @@ const callSchema = new mongoose.Schema({
         type : Number,
     
     }, 
+    action : {
+        type : String,
+        default : 0,
+    }, 
+    connection : {
+        type : Boolean,
+        default : false,
+    }
 })
 
 const CallLogs = mongoose.model('CallLogs', callSchema);

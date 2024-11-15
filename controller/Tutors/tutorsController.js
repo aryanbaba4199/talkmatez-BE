@@ -1,4 +1,6 @@
 const Tutors = require("../../models/Tutors/tutors");
+const CallLogs = require("../../models/users/calllogs");
+const Call = require("../../models/users/calllogs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -65,17 +67,16 @@ exports.updateTutor = async (req, res, next) => {
 };
 
 exports.login = async (req, res, next) => {
-  console.log("called");
-  const { id } = req.params;
-  console.log("id received", id);
-  try {
-    const tutor = await Tutors.findOne({ tutorId: id });
 
-    if (tutor) {
-      // Exclude circular references from the tutor object
+  const {formData} = req.body;
+
+  try {
+    const tutor = await Tutors.findOne({ loginId : formData.loginId });
+    
+    if (tutor && formData.password === tutor.password) {
       const tutorData = {
         ...tutor.toObject(),
-        client: undefined, // Exclude the circular reference (if applicable)
+        client: undefined,
       };
 
       const token = jwt.sign(
@@ -85,10 +86,10 @@ exports.login = async (req, res, next) => {
         jwtKey,
         { expiresIn: `${24 * 30}h` }
       );
-
+      
       res.status(200).json({ token, tutorData });
     } else {
-      res.status(404).json({ message: "Tutor not found" });
+      res.status(400).json({ message: "Invalid credentials" });
     }
   } catch (e) {
     console.error(e);
@@ -126,17 +127,35 @@ exports.updateToken = async (req, res, next) => {
 
 exports.getTutor = async (req, res) => {
   try {
-    console.log("id is  ");
+
     const { id } = req.params;
 
     const tutor = await Tutors.findById(id);
-    console.log(`Token retrieved`, tutor);
     if (tutor) {
       res.status(200).json(tutor);
     } else {
       res.status(404).json({ message: "Tutor not found" });
     }
   } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: " Server error" });
+  }
+};
+
+exports.dashboardData = async(req, res, next) => {
+  const {id} = req.params;
+  try{
+    const call = await CallLogs.find({secUserId : id});
+    const data = {
+      totalCall: call.length,
+      acceptedCall: call.filter(c => c.connection===true && parseInt(c.action) !== 6).length,
+      declinedCall: call.filter(c => parseInt(c.action) === 1).length,
+      disconnectedCall: call.filter(c => parseInt(c.action) === 6).length,
+      missedCall: call.filter(c => c.connection === false && parseInt(c.action) !== 1).length,
+    };
+    console.log('sending dashboards', data)
+    res.status(200).json(data);
+  }catch(error){
     console.log(error);
     res.status(500).json({ message: " Server error" });
   }

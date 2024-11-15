@@ -11,8 +11,7 @@ const tutorSocketMap = {};
 const userSocketMap = {};
 const CallIds = {};
 const activeCalls= {};
-const tutoronCall = {};
-const studentOnCall = {};
+
 
 async function getTutorFcmToken(tutorId) {
   const tutor = await Tutors.findOne({ _id: tutorId });
@@ -49,6 +48,7 @@ module.exports = (io) => {
       if (tutorSocketId) {
         
         socket.to(tutorSocketId).emit("call_started", data);
+        startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);
         
@@ -93,7 +93,7 @@ module.exports = (io) => {
     // End a call
     socket.on("end_call", (data) => {
       handleEndCalls(data);
-      updateTime(data.userId);
+      updateTime(data.userId, 3);
       socket.broadcast.emit("available", data?.tutorId);
       io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
       updateTutor(data.tutorId, "available");
@@ -105,6 +105,7 @@ module.exports = (io) => {
 
     // Decline a call
     socket.on("decline_call", ({ data }) => {
+      updateTime(data.userId, 1)
       handleEndCalls(data);
       socket.broadcast.emit("available", data.tutorId);
       updateTutor(data.tutorId, "available");
@@ -116,23 +117,29 @@ module.exports = (io) => {
 
     socket.on("tutor_end", (data) => {
       handleEndCalls(data);
+      updateTime(data.userId, 4);
       const userSocketId = userSocketMap[data.userId];
       socket.broadcast.emit("available", data.tutorId);
       
       updateTutor(data.tutorId, "available");
-      updateTime(data.userId);
       if (userSocketId) {
         io.to(userSocketId).emit("tutor_end_the_call");
       }
     });
 
     socket.on("call_accepted", (data) => {
-      startTime(data);
+      console.log('accepted', data)
+      updateTime(data.userId, 2);
       const userSocketId = userSocketMap[data?.userId];
       if (userSocketId) {
         io.to(userSocketId).emit("call_accepted");
       }
     });
+    socket.on('call_not_accepted', (data)=>{
+      console.log(data);
+      io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
+      updateTime(data.userId, 0);
+    })
 
     // Handle disconnection
     // Handle disconnection
@@ -148,7 +155,7 @@ module.exports = (io) => {
           if (activeCall) {
             const studentSocketId = activeCall.studentSocketId;
             if (studentSocketId) {
-              updateTime(activeCall.userId)
+              updateTime(activeCall.userId, 6)
               io.to(studentSocketId).emit("call_ended_due_to_disconnect", {
                 message: "The tutor has disconnected. The call has ended.",
               });
@@ -172,7 +179,7 @@ module.exports = (io) => {
             (tid) => activeCalls[tid].userId === userId
           );
           if (tutorId) {
-            updateTime(userId);
+            updateTime(userId, 5);
             const tutorSocketId = activeCalls[tutorId].tutorSocketId;
             if (tutorSocketId) {
               io.to(tutorSocketId).emit("call_ended_due_to_disconnect", {
@@ -205,6 +212,7 @@ const updateTutor = async (id, status) => {
 };
 
 const startTime = async (data) => {
+  console.log("startTime", data);
   try {
     const userId = data.userId;
     const tutorId = data.tutorId;
@@ -219,6 +227,7 @@ const startTime = async (data) => {
       userId: user._id,
       secUserId: tutor._id,
       end: 0,
+      action : data.action,
     };
 
     // Call CallTiming and handle the result
@@ -251,7 +260,7 @@ function handleEndCalls(data) {
   delete activeCalls[data.tutorId];
 }
 
-const updateTime = async (userId) => {
+const updateTime = async (userId, action) => {
   try {
     const data = CallIds[userId];
     console.log("start call data is ", data);
@@ -259,9 +268,14 @@ const updateTime = async (userId) => {
       console.error(`No call log found for user ${userId}`);
       return;
     }
-    await updateCallTiming({ body: data });
-    delete CallIds[userId];
-    console.log(`Call timing updated and cleared for user ${userId}`);
+    updateValue = {data, action};
+    await updateCallTiming({ body: updateValue });
+    if(action!==2){
+      console.log(`Call timing updated and cleared for user ${userId}`);
+      delete CallIds[userId];
+    }
+    
+    
   } catch (error) {
     console.error("Error updating call timing:", error);
   }

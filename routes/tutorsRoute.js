@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {getTutors, createTutor, updateTutor, login, updateToken, getTutor} = require('../controller/Tutors/tutorsController');
+const {getTutors, createTutor, updateTutor, login, updateToken, getTutor, dashboardData} = require('../controller/Tutors/tutorsController');
 const {tutorCalllogs} = require('../controller/users/CallController');
 
 console.log('called')
@@ -9,10 +9,11 @@ console.log('called')
 router.post('/createTutor', createTutor);
 router.get('/getTutors', getTutors);
 router.put('/updateTutor', updateTutor);
-router.get('/login/:id', login);
+router.post('/login', login);
 router.put('/updateToken', updateToken)
 router.get('/getTutor/:id', getTutor);
 router.get('/calllogs/:id', tutorCalllogs);
+router.get('/dashboard/:id', dashboardData);
 
 
 

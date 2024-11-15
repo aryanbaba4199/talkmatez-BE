@@ -34,7 +34,7 @@ exports.CallTiming = async (req, res) => {
 
 
 exports.updateCallTiming = async (req, res, next) => {
-  const  data  = req.body;
+  const  {data, action}  = req.body;
 
   if (!data) {
     console.log("no data found");
@@ -67,20 +67,39 @@ exports.updateCallTiming = async (req, res, next) => {
       { coins: Math.round(user.coins+9 - callDuration) },
       { new: true }
     );
+    if(action===2){
+      const updatedCall = await CallLogs.findByIdAndUpdate(
+        data._id,
+        {
+          start : currentTime,
+          end: currentTime,
+          tutorEndCoin: updatedTutor.coins,
+          studentEndCoin: updatedUser.coins,
+          action : action,
+          connection : true,
+        },
+        { new: true }
+      );
+      return updatedCall
+    }else{
+      const updatedCall = await CallLogs.findByIdAndUpdate(
+        data._id,
+        {
+          end: currentTime,
+          tutorEndCoin: updatedTutor.coins,
+          studentEndCoin: updatedUser.coins,
+          action : action
+        },
+        { new: true }
+      );
+      return updatedCall;
+    }
 
-    const updatedCall = await CallLogs.findByIdAndUpdate(
-      data._id,
-      {
-        end: currentTime,
-        tutorEndCoin: updatedTutor.coins,
-        studentEndCoin: updatedUser.coins,
-      },
-      { new: true }
-    );
+    
 
-    console.log(updatedCall);
+    
 
-    return updatedCall
+
   } catch (err) {
     console.log("Error updating call timing:", err);
     res.status(500).json(err);
@@ -121,7 +140,8 @@ exports.callDetails = async (req, res, next) => {
 };
 
 exports.tutorCalllogs = async (req, res, next) => {
-  const { id, page = 1 } = req.params; // Default to page 1 if not provided
+  console.log("tutorCalllogs");
+  const { id, page = 1 } = req.params;
   const limit = 20;
   const skip = (page - 1) * limit;
 
@@ -146,6 +166,7 @@ exports.tutorCalllogs = async (req, res, next) => {
     } else {
       return res.status(404).json({ message: "No call logs found for this user" });
     }
+    
   } catch (err) {
     console.error("Error getting call logs", err);
     next(err);
