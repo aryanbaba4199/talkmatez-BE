@@ -49,26 +49,25 @@ exports.updateCallTiming = async (req, res, next) => {
     const currentTime = timeRes.data.dateTime;
 
     const startTime = data.start;
-    const callDuration = (new Date(currentTime) - new Date(startTime)) / 1000; 
-    const transactedCoin = callDuration >=9 ? callDuration-9 : 0;
+    let callDuration = (new Date(currentTime) - new Date(startTime)) / 1000; 
+    const coinDuration = callDuration>=10 ? callDuration-9 : 0;
 
     // Fetch tutor and user by ID to get their current coins and balance
     const tutor = await Tutors.findById(data.secUserId);
     const user = await User.findById(data.userId);
-
-    console.log(tutor, user)
-    if(callDuration>=9000){
-      
-    }
+    const earnCoin = tutor.rate*(coinDuration/60);
+    
+   
+    
     const updatedTutor = await Tutors.findByIdAndUpdate(
       data.secUserId,
-      { coins: Math.round(tutor.coins + callDuration-transactedCoin) },
+      { coins: Math.round(tutor.coins + earnCoin) },
       { new: true }
     );
 
     const updatedUser = await User.findByIdAndUpdate(
       data.userId,
-      { coins: Math.round(user.coins+transactedCoin - callDuration) },
+      { coins: Math.round(user.coins-earnCoin) },
       { new: true }
     );
     if(action===2){
