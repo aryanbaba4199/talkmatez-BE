@@ -66,6 +66,45 @@ exports.updateTutor = async (req, res, next) => {
   }
 };
 
+exports.updateRating = async (req, res) => {
+  const { id } = req.params;
+  const  formData  = req.body;
+
+  try {
+    const tutor = await Tutors.findById(id);
+    if (!tutor) {
+      console.log('Tutor not found');
+      return res.status(404).json({ message: 'Tutor not found' });
+    }
+
+    if (!tutor.rating) {
+      tutor.rating = [];
+    }
+    const existingRatingIndex = tutor.rating.findIndex(
+      (r) => r?.userId === formData.userId
+    );
+
+    if (existingRatingIndex !== -1) {
+
+      tutor.rating[existingRatingIndex] = formData;
+    } else {
+
+      tutor.rating.push(formData);
+    }
+    await tutor.save();
+    
+    res.status(200).json({
+      message: 'Rating updated successfully',
+      
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
+
 exports.login = async (req, res, next) => {
 
   const {formData} = req.body;

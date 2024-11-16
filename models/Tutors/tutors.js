@@ -39,9 +39,13 @@ const tutorSchema = new mongoose.Schema({
         type : String,
         default : 'Freelancer'
     }, 
-    rating : {
-        type : []
-    },
+    rating: [
+        {
+          userId: { type: String },
+          rating: { type: Number },
+          review: { type: String },
+        },
+      ],
     coins : {
         type : Number,
         default : 0
