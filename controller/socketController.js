@@ -2,6 +2,7 @@
 const admin = require("firebase-admin");
 const Tutors = require("../models/Tutors/tutors");
 const User = require("../models/users/users");
+const SocketLog = require("../models/Others/socket");
 const {
   CallTiming,
   updateCallTiming,
@@ -38,6 +39,20 @@ module.exports = (io) => {
         userSocketMap[userId] = socket.id;
       }
     });
+    socket.on("reconnect", () => {
+      console.log("Socket reconnected:", socket.id);
+  
+      // Check if tutor is registered and update status
+      const tutorId = Object.keys(tutorSocketMap).find(
+        (id) => tutorSocketMap[id] === socket.id
+      );
+  
+      if (tutorId) {
+        updateTutor(tutorId, "available");
+        socket.broadcast.emit("available", tutorId);
+      }
+    });
+    
 
     // Start a call
     socket.on("start_call", async ({ data }) => {
@@ -143,8 +158,9 @@ module.exports = (io) => {
 
     // Handle disconnection
     // Handle disconnection
-    socket.on("disconnect", () => {
-      // Check if a tutor disconnected
+    socket.on("disconnect", (reason) => {
+      
+      
       for (let tutorId in tutorSocketMap) {
         if (tutorSocketMap[tutorId] === socket.id) {
           delete tutorSocketMap[tutorId];
@@ -165,6 +181,7 @@ module.exports = (io) => {
     
           socket.broadcast.emit("offline", tutorId);
           updateTutor(tutorId, "offline");
+          storeDisconnection(reason, 'Tutor')
         }
       }
     
@@ -189,6 +206,7 @@ module.exports = (io) => {
               updateTutor(tutorId, 'available');
             }
             handleEndCalls({ tutorId, userId });
+            storeDisconnection(reason, 'Student')
           }
         }
       }
@@ -275,9 +293,21 @@ const updateTime = async (userId, action) => {
       delete CallIds[userId];
     }
     
-    
   } catch (error) {
     console.error("Error updating call timing:", error);
   }
 };
 
+
+const storeDisconnection = async(logIs, who)=>{
+  try{
+    const log = new SocketLog({
+      logIs,
+      who,
+    })
+    await log.save();
+  
+  }catch (error) {
+    console.error("Error updating call timing:", error);
+  }
+}
