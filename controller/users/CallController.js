@@ -34,13 +34,13 @@ exports.CallTiming = async (req, res) => {
 
 
 exports.updateCallTiming = async (req, res, next) => {
-  const  {data, action}  = req.body;
+  const { data, action, call } = req.body;
 
   if (!data) {
     console.log("no data found");
     return res.status(400).json({ message: "No data found in request body" });
   }
-  console.log('in data', data);
+  console.log("in data", data);
 
   try {
     const timeRes = await axios.get(
@@ -49,16 +49,19 @@ exports.updateCallTiming = async (req, res, next) => {
     const currentTime = timeRes.data.dateTime;
 
     const startTime = data.start;
-    let callDuration = (new Date(currentTime) - new Date(startTime)) / 1000; 
-    const coinDuration = callDuration>=10 ? callDuration-9 : 0;
+    let callDuration = call ? 0  : (new Date(currentTime) - new Date(startTime)) / 1000; 
 
-    // Fetch tutor and user by ID to get their current coins and balance
+    console.log('call duration: ' + callDuration)
+    const coinDuration = Math.ceil(callDuration / 60);
+    console.log('coin duration: ' + coinDuration)
+
+
     const tutor = await Tutors.findById(data.secUserId);
     const user = await User.findById(data.userId);
-    const earnCoin = tutor.rate*(coinDuration/60);
-    
-   
-    
+
+  
+    const earnCoin = tutor.rate * coinDuration;
+
     const updatedTutor = await Tutors.findByIdAndUpdate(
       data.secUserId,
       { coins: Math.round(tutor.coins + earnCoin) },
@@ -67,47 +70,43 @@ exports.updateCallTiming = async (req, res, next) => {
 
     const updatedUser = await User.findByIdAndUpdate(
       data.userId,
-      { coins: Math.round(user.coins-earnCoin) },
+      { coins: Math.round(user.coins - earnCoin) },
       { new: true }
     );
-    if(action===2){
+
+    if (action === 2) {
       const updatedCall = await CallLogs.findByIdAndUpdate(
         data._id,
         {
-          start : currentTime,
+          start: currentTime,
           end: currentTime,
           tutorEndCoin: updatedTutor.coins,
           studentEndCoin: updatedUser.coins,
-          action : action,
-          connection : true,
+          action: action,
+          connection: true,
         },
         { new: true }
       );
-      return updatedCall
-    }else{
+      return updatedCall;
+    } else {
       const updatedCall = await CallLogs.findByIdAndUpdate(
         data._id,
         {
           end: currentTime,
           tutorEndCoin: updatedTutor.coins,
           studentEndCoin: updatedUser.coins,
-          action : action
+          action: action,
         },
         { new: true }
       );
       return updatedCall;
     }
-
-    
-
-    
-
-
   } catch (err) {
     console.log("Error updating call timing:", err);
     res.status(500).json(err);
   }
 };
+
 
 exports.callDetails = async (req, res, next) => {
   const { id, page = 1 } = req.params; // Default to page 1 if not provided

@@ -144,7 +144,7 @@ module.exports = (io) => {
 
     socket.on("call_accepted", (data) => {
       console.log('accepted', data)
-      updateTime(data.userId, 2);
+      updateTime(data.userId, 2, true);
       const userSocketId = userSocketMap[data?.userId];
       if (userSocketId) {
         io.to(userSocketId).emit("call_accepted");
@@ -153,7 +153,7 @@ module.exports = (io) => {
     socket.on('call_not_accepted', (data)=>{
       console.log(data);
       io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
-      updateTime(data.userId, 0);
+      updateTime(data.userId, 0, true);
     })
 
     // Handle disconnection
@@ -278,7 +278,7 @@ function handleEndCalls(data) {
   delete activeCalls[data.tutorId];
 }
 
-const updateTime = async (userId, action) => {
+const updateTime = async (userId, action, call) => {
   try {
     const data = CallIds[userId];
     console.log("start call data is ", data);
@@ -286,7 +286,7 @@ const updateTime = async (userId, action) => {
       console.error(`No call log found for user ${userId}`);
       return;
     }
-    updateValue = {data, action};
+    updateValue = {data, action, call};
     await updateCallTiming({ body: updateValue });
     if(action!==2){
       console.log(`Call timing updated and cleared for user ${userId}`);
