@@ -40,7 +40,7 @@ exports.updateCallTiming = async (req, res, next) => {
     console.log("no data found");
     return res.status(400).json({ message: "No data found in request body" });
   }
-  console.log("in data", data);
+
 
   try {
     const timeRes = await axios.get(
@@ -51,9 +51,9 @@ exports.updateCallTiming = async (req, res, next) => {
     const startTime = data.start;
     let callDuration = call ? 0  : (new Date(currentTime) - new Date(startTime)) / 1000; 
 
-    console.log('call duration: ' + callDuration)
+    // console.log('call duration: ' + callDuration)
     const coinDuration = Math.ceil(callDuration / 60);
-    console.log('coin duration: ' + coinDuration)
+    // console.log('coin duration: ' + coinDuration)
 
 
     const tutor = await Tutors.findById(data.secUserId);
@@ -142,7 +142,6 @@ exports.callDetails = async (req, res, next) => {
 };
 
 exports.tutorCalllogs = async (req, res, next) => {
-  console.log("tutorCalllogs");
   const { id, page = 1 } = req.params;
   const limit = 20;
   const skip = (page - 1) * limit;
