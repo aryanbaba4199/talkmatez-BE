@@ -7,7 +7,7 @@ const connectDb = async() => {
         // const connection = await mongoose.connect('mongodb://0.0.0.0:27017/talkmatez')
         const connection = await mongoose.connect(MONGODB_URI)
         console.log("Connected to Database");
-    }catch(e){
+    }catch(e){ 
         console.error("Error connecting to Database ", e);
         process.exit(1);
     }

@@ -275,7 +275,7 @@ const storeDisconnection = async (logIs, who) => {
 
 const handleFcmNotifier = async (data) => {
   const tutorFcmToken = await getTutorFcmToken(data.tutorId);
-
+  console.log("tutorFcmToken", tutorFcmToken);
   if (tutorFcmToken) {
     console.log("sendin call notification via FCM");
     const message = {
