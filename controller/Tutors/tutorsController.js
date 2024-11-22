@@ -50,7 +50,7 @@ exports.getTutors = async (req, res, next) => {
 
 exports.updateTutor = async (req, res, next) => {
   const { formData } = req.body;
-  console.log(formData);
+
   try {
     const tutor = await Tutors.findByIdAndUpdate(formData._id, formData, {
       new: true,
@@ -138,7 +138,7 @@ exports.login = async (req, res, next) => {
 
 exports.updateToken = async (req, res, next) => {
   const { token, tutorId } = req.body; // Extract token and tutorId from request body
-  console.log(token, tutorId);
+
 
   if (!token || !tutorId) {
     return res.status(400).json({ message: "Token and tutorId are required" });
@@ -192,7 +192,6 @@ exports.dashboardData = async(req, res, next) => {
       disconnectedCall: call.filter(c => parseInt(c.action) === 6).length,
       missedCall: call.filter(c => c.connection === false && parseInt(c.action) !== 1).length,
     };
-    console.log('sending dashboards', data)
     res.status(200).json(data);
   }catch(error){
     console.log(error);

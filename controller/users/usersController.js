@@ -66,7 +66,7 @@ exports.login = async (req, res, next) => {
   console.log(mobile); // Debug log to check the mobile parameter
   try {
     const user = await User.findOne({ mobile });
-    console.log(user); // Debug log to check if the user is found
+
     if (user === null) {
       res.status(250).json({ message: "User not in database" });
     } else {
@@ -101,7 +101,7 @@ exports.updateUser = async(req, res, next) => {
   try{
     const user = await User.findByIdAndUpdate(formData._id, formData, {new:true});
     if(user){
-      console.log(user);
+   
       res.status(200).json({message:'success'})
     }else{
       res.status(404).json({message : 'Error updating user'});
@@ -114,7 +114,7 @@ exports.updateUser = async(req, res, next) => {
 
 exports.updateCoins = async (req, res, next) => {
   const formData = req.body;
-  console.log(formData);
+
   try {
     // Await the update and get the updated user data
     const user = await User.findByIdAndUpdate(
@@ -122,7 +122,7 @@ exports.updateCoins = async (req, res, next) => {
       { coins: formData.coins }, 
       { new: true }  // Ensures the updated document is returned
     );
-    console.log(user);
+  
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

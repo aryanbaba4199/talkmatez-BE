@@ -22,7 +22,7 @@ module.exports = (io) => {
   io.on("connection", (socket) => {
     // Register tutor with socket ID
     socket.on("register_tutor", ({ tutorId }) => {
-      console.log("Register tutor socketid: ", socket.id);
+      console.log("Register tutor socketid: ", tutorId);
 
       if (tutorId) {
         tutorSocketMap[tutorId] = socket.id;
@@ -39,7 +39,7 @@ module.exports = (io) => {
       }
     });
     socket.on("reconnect", (tutorId, tutor) => {
-      console.log("Socket reconnected:", socket.id);
+      console.log("Socket reconnected:", tutorId);
 
       tutorSocketMap[tutorId] = socket.id;
 
@@ -50,28 +50,33 @@ module.exports = (io) => {
     });
 
     // Start a call
-    socket.on("start_call", async ({ data }) => {
+    socket.on("start_call", ({ data }) => {
       if (!data) {
         return;
       }
       const tutorSocketId = tutorSocketMap[data.tutorId];
       console.log("start call tutorId", tutorSocketId, data.tutorId);
+      
+
+    
       if (tutorSocketId) {
         try {
           socket.to(tutorSocketId).emit("call_started", data);
-          startTime(data);
-          handleOnCalls(data);
-          socket.broadcast.emit("busy", data.tutorId);
-          updateTutor(data.tutorId, "busy");
-          return;
+            console.log('starting data is ',data)
+              startTime(data);
+              handleOnCalls(data);
+              socket.broadcast.emit("busy", data.tutorId);
+              updateTutor(data.tutorId, "busy");
         } catch (e) {
           handleFcmNotifier(data);
           console.error(e);
         }
       } else {
-        handleFcmNotifier(data);
+        console.log('sending to FCM');
+        handleFcmNotifier(data, socket);
       }
     });
+    
 
     socket.on("end_call", (data) => {
       handleEndCalls(data);
@@ -87,7 +92,8 @@ module.exports = (io) => {
     socket.on("student_0_end", (data) => handleOend(io, socket, data));
 
     // Decline a call
-    socket.on("decline_call", ({ data }) => {
+    socket.on("decline_call", data => {
+      console.log("declined", data);
       updateTime(data.userId, 1, true);
       handleEndCalls(data);
       socket.broadcast.emit("available", data.tutorId);
@@ -273,31 +279,31 @@ const storeDisconnection = async (logIs, who) => {
   }
 };
 
-const handleFcmNotifier = async (data) => {
+const handleFcmNotifier = async (data, socket) => {
   const tutorFcmToken = await getTutorFcmToken(data.tutorId);
   console.log("tutorFcmToken", tutorFcmToken);
   if (tutorFcmToken) {
     console.log("sendin call notification via FCM");
     const message = {
       token: tutorFcmToken,
-      notification: {
-        title: "Incoming Call",
-        body: `You have an incoming call from ${data.userId}`,
-      },
       data: {
         agoraToken: `${data?.agoraToken}`,
-        channelName: `${data?.channelName}`,
+        tutorId: `${data?.tutorId}`,
         userId: `${data?.userId}`,
       },
     };
 
     try {
       await admin.messaging().send(message);
+      startTime(data);
+      handleOnCalls(data);
+      socket.broadcast.emit("busy", data.tutorId);
+      updateTutor(data.tutorId, "busy");
+      return;
     } catch (error) {
       console.error("Error sending FCM notification:", error);
     }
   } else {
-    console.log(tutorSocketMap);
     const userSocketId = userSocketMap[data.userId];
     console.log(userSocketId);
     if (userSocketId) {
