@@ -20,173 +20,33 @@ async function getTutorFcmToken(tutorId) {
 
 module.exports = (io) => {
   io.on("connection", (socket) => {
-    // Register tutor with socket ID
-    socket.on("register_tutor", ({ tutorId }) => {
-      console.log("Register tutor socketid: ", tutorId);
-
-      if (tutorId) {
-        tutorSocketMap[tutorId] = socket.id;
-        socket.broadcast.emit("available", tutorId);
-        updateTutor(tutorId, "available");
-      }
+    socket.on("register_tutor", (tutorId) => {
+      handleTutorRegistration(tutorId, socket);
     });
-
-    // Register user with socket ID
-    socket.on("register_user", ({ userId }) => {
-      console.log("Registerer user socketid: ", socket.id);
-      if (userId) {
-        userSocketMap[userId] = socket.id;
-      }
+    socket.on("register_user", (userId) => {
+      handleUserRegistration(userId, socket);
     });
     socket.on("reconnect", (tutorId, tutor) => {
-      console.log("Socket reconnected:", tutorId);
-
-      tutorSocketMap[tutorId] = socket.id;
-
-      if (tutor) {
-        updateTutor(tutorId, "available");
-        socket.broadcast.emit("available", tutorId);
-      }
+      handleTutorReconnection(tutorId, socket, tutor);
     });
-
-    // Start a call
-    socket.on("start_call", ({ data }) => {
-      if (!data) {
-        return;
-      }
-      const tutorSocketId = tutorSocketMap[data.tutorId];
-      console.log("start call tutorId", tutorSocketId, data.tutorId);
-      
-
-    
-      if (tutorSocketId) {
-        try {
-          socket.to(tutorSocketId).emit("call_started", data);
-            console.log('starting data is ',data)
-              startTime(data);
-              handleOnCalls(data);
-              socket.broadcast.emit("busy", data.tutorId);
-              updateTutor(data.tutorId, "busy");
-        } catch (e) {
-          handleFcmNotifier(data);
-          console.error(e);
-        }
-      } else {
-        console.log('sending to FCM');
-        handleFcmNotifier(data, socket);
-      }
-    });
-    
-
-    socket.on("end_call", (data) => {
-      handleEndCalls(data);
-      updateTime(data.userId, 3);
-      socket.broadcast.emit("available", data?.tutorId);
-      io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
-      updateTutor(data.tutorId, "available");
-      const tutorSocketId = tutorSocketMap[data.tutorId];
-      if (tutorSocketId) {
-        io.to(tutorSocketId).emit("call_ended", data);
-      }
-    });
-    socket.on("student_0_end", (data) => handleOend(io, socket, data));
-
-    // Decline a call
-    socket.on("decline_call", data => {
-      console.log("declined", data);
-      updateTime(data.userId, 1, true);
-      handleEndCalls(data);
-      socket.broadcast.emit("available", data.tutorId);
-      updateTutor(data.tutorId, "available");
-      const userSocketId = userSocketMap[data.userId];
-      if (userSocketId) {
-        io.to(userSocketId).emit("call_declined", data);
-      }
-    });
-    socket.on("tutor_end", (data) => {
-      handleEndCalls(data);
-      updateTime(data.userId, 4);
-      const userSocketId = userSocketMap[data.userId];
-      console.log("tutor_end_the_call", userSocketId);
-      socket.broadcast.emit("available", data.tutorId);
-
-      updateTutor(data.tutorId, "available");
-      if (userSocketId) {
-        console.log("emititng user about tutor end call");
-        io.to(userSocketId).emit("tutor_end_the_call", data);
-      }
-    });
-
-    socket.on("call_accepted", (data) => {
-      console.log("accepted", data);
-      updateTime(data.userId, 2, true);
-      const userSocketId = userSocketMap[data?.userId];
-      if (userSocketId) {
-        io.to(userSocketId).emit("call_accepted");
-      }
-    });
-    socket.on("call_not_accepted", (data) => {
-      console.log(data);
-      io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
-      updateTime(data.userId, 0, true);
-    });
-
-    // Handle disconnection
-    // Handle disconnection
-    socket.on("disconnect", (reason) => {
-      for (let tutorId in tutorSocketMap) {
-        if (tutorSocketMap[tutorId] === socket.id) {
-          delete tutorSocketMap[tutorId];
-          console.log(`Tutor ${tutorId} disconnected.`);
-
-          // Check for active call
-          const activeCall = activeCalls[tutorId];
-          if (activeCall) {
-            const studentSocketId = activeCall.studentSocketId;
-            if (studentSocketId) {
-              updateTime(activeCall.userId, 6);
-              io.to(studentSocketId).emit("call_ended_due_to_disconnect", {
-                message: "The tutor has disconnected. The call has ended.",
-              });
-            }
-            handleEndCalls({ tutorId, userId: activeCall.userId });
-          }
-
-          socket.broadcast.emit("offline", tutorId);
-          updateTutor(tutorId, "offline");
-          storeDisconnection(reason, "Tutor");
-        }
-      }
-
-      // Check if a student disconnected
-      for (let userId in userSocketMap) {
-        if (userSocketMap[userId] === socket.id) {
-          delete userSocketMap[userId];
-          console.log(`User ${userId} disconnected.`);
-
-          // Find if this student is in an active call
-          const tutorId = Object.keys(activeCalls).find(
-            (tid) => activeCalls[tid].userId === userId
-          );
-          if (tutorId) {
-            updateTime(userId, 5);
-            const tutorSocketId = activeCalls[tutorId].tutorSocketId;
-            if (tutorSocketId) {
-              io.to(tutorSocketId).emit("call_ended_due_to_disconnect", {
-                message: "The student has disconnected. The call has ended.",
-              });
-              socket.broadcast.emit("available", tutorId);
-              updateTutor(tutorId, "available");
-            }
-            handleEndCalls({ tutorId, userId });
-            storeDisconnection(reason, "Student");
-          }
-        }
-      }
-    });
+    socket.on("start_call", (data) => hanleCallStart(io, socket, data));
+    socket.on("student_end_call", (data) => handleCallEnd(io, socket, data));
+    socket.on("student_early_end", (data) =>
+      handleStudentEarlyCallEnd(io, socket, data)
+    );
+    socket.on("decline_call", (data) => handleCallDeclined(io, socket, data));
+    socket.on("tutor_call_end", (data) => handleTutorEndCall(io, socket, data));
+    socket.on("call_accepted", (data) => handleCallAccepted(io, socket, data));
+    socket.on("call_not_accepted", (data) =>
+      handleCallNotAccepted(io, socket, data)
+    );
+    socket.on("disconnect", (reason, data) =>
+      handleDisconnection(io, socket, reason)
+    );
   });
 };
 
+// ------------Updating Tutor------------
 const updateTutor = async (id, status) => {
   try {
     const x = await Tutors.findByIdAndUpdate(
@@ -199,8 +59,9 @@ const updateTutor = async (id, status) => {
   }
 };
 
+//---------------Storing Start Time----------------
+
 const startTime = async (data) => {
-  // console.log("startTime", data);
   try {
     const userId = data.userId;
     const tutorId = data.tutorId;
@@ -232,20 +93,28 @@ const startTime = async (data) => {
 };
 
 function handleOnCalls(data) {
-  const tutorSocketId = tutorSocketMap[data.tutorId];
-  const userSocketId = userSocketMap[data.userId];
+  try {
+    const tutorSocketId = tutorSocketMap[data.tutorId];
+    const userSocketId = userSocketMap[data.userId];
 
-  if (tutorSocketId && userSocketId) {
-    activeCalls[data.tutorId] = {
-      tutorSocketId,
-      studentSocketId: userSocketId,
-      userId: data.userId,
-    };
+    if (tutorSocketId && userSocketId) {
+      activeCalls[data.tutorId] = {
+        tutorSocketId,
+        studentSocketId: userSocketId,
+        userId: data.userId,
+      };
+    }
+  } catch (error) {
+    console.error("error in on calls", error);
   }
 }
 
 function handleEndCalls(data) {
-  delete activeCalls[data.tutorId];
+  try {
+    delete activeCalls[data.tutorId];
+  } catch (error) {
+    console.error("error in end calls", error);
+  }
 }
 
 const updateTime = async (userId, action, call) => {
@@ -280,47 +149,279 @@ const storeDisconnection = async (logIs, who) => {
 };
 
 const handleFcmNotifier = async (data, socket) => {
-  const tutorFcmToken = await getTutorFcmToken(data.tutorId);
-  console.log("tutorFcmToken", tutorFcmToken);
-  if (tutorFcmToken) {
-    console.log("sendin call notification via FCM");
-    const message = {
-      token: tutorFcmToken,
-      data: {
-        agoraToken: `${data?.agoraToken}`,
-        tutorId: `${data?.tutorId}`,
-        userId: `${data?.userId}`,
-      },
-    };
+  try {
+    const tutorFcmToken = await getTutorFcmToken(data.tutorId);
+    console.log("tutorFcmToken", tutorFcmToken);
+    if (tutorFcmToken) {
+      console.log("sendin call notification via FCM");
+      const message = {
+        token: tutorFcmToken,
+        data: {
+          agoraToken: `${data?.agoraToken}`,
+          tutorId: `${data?.tutorId}`,
+          userId: `${data?.userId}`,
+        },
+      };
 
-    try {
-      await admin.messaging().send(message);
-      startTime(data);
-      handleOnCalls(data);
-      socket.broadcast.emit("busy", data.tutorId);
-      updateTutor(data.tutorId, "busy");
-      return;
-    } catch (error) {
-      console.error("Error sending FCM notification:", error);
+      try {
+        await admin.messaging().send(message);
+        startTime(data);
+        handleOnCalls(data);
+        socket.broadcast.emit("busy", data.tutorId);
+        updateTutor(data.tutorId, "busy");
+        return;
+      } catch (error) {
+        console.error("Error sending FCM notification:", error);
+      }
+    } else {
+      const userSocketId = userSocketMap[data.userId];
+      console.log(userSocketId);
+      if (userSocketId) {
+        console.log("network failed to connect");
+        socket.to(userSocketId).emit("network_error");
+      }
     }
-  } else {
-    const userSocketId = userSocketMap[data.userId];
-    console.log(userSocketId);
-    if (userSocketId) {
-      console.log("network failed to connect");
-      socket.to(userSocketId).emit("network_error");
-    }
+  } catch (error) {
+    console.error("Error in FCM Notification", error);
   }
 };
 
-const handleOend = async (io, socket, data) => {
-  console.log("student ended connection", data);
-  updateTime(data.userId, 0, true);
-  handleEndCalls(data);
-  socket.broadcast.emit("available", data.tutorId);
-  updateTutor(data.tutorId, "available");
-  const tutorSocketId = tutorSocketMap[data.tutorId];
-  if (tutorSocketId) {
-    io.to(tutorSocketId).emit("call_ended", data);
+// -------------Handling tutor Registration -----------------
+
+const handleTutorRegistration = async (tutorId, socket) => {
+  console.log("Register tutor socketid: ", tutorId);
+  try {
+    if (tutorId) {
+      tutorSocketMap[tutorId] = socket.id;
+      socket.broadcast.emit("available", tutorId);
+      updateTutor(tutorId, "available");
+    }
+  } catch (e) {
+    console.error("Error in tutor Registration", e);
+  }
+};
+
+//---------------------Handling User Registration--------------------
+
+const handleUserRegistration = async (userId, socket) => {
+  console.log("Handling user registration", userId);
+  try {
+    if (userId) {
+      userSocketMap[userId] = socket.id;
+    }
+  } catch (e) {
+    console.error("Error in user Registration", e);
+  }
+};
+
+//-------------------Handle Reconnection of Tutor --------------------
+
+const handleTutorReconnection = async (tutorId, tutor, socket) => {
+  try {
+    tutorSocketMap[tutorId] = socket.id;
+    if (tutor) {
+      await updateTutor(tutorId, "available");
+      socket.broadcast.emit("available", tutorId);
+    }
+  } catch (error) {
+    console.error("Error in tutor Reconnection", error);
+  }
+};
+
+//----------------Handling Call Start ----------------
+const hanleCallStart = (io, socket, data) => {
+  if (!data) {
+    return;
+  }
+  console.log("Handling call start ", data)
+  try {
+    const tutorSocketId = tutorSocketMap[data.tutorId];
+    console.log("start call tutorId", tutorSocketId, data.tutorId);
+    if (tutorSocketId) {
+      try {
+        socket.to(tutorSocketId).emit("call_started", data);
+        console.log("starting data is ", data);
+        startTime(data);
+        handleOnCalls(data);
+        socket.broadcast.emit("busy", data.tutorId);
+        updateTutor(data.tutorId, "busy");
+      } catch (e) {
+        handleFcmNotifier(data);
+        console.error(e);
+      }
+    } else {
+      console.log("sending to FCM");
+      handleFcmNotifier(data, socket);
+    }
+  } catch (error) {
+    console.error("Error in starting call", error);
+  }
+};
+
+//----------------Handling Student Early Call End--------------
+
+const handleStudentEarlyCallEnd = (io, socket, data) => {
+  try {
+    console.log("student ended connection", data);
+    updateTime(data.userId, 0, true);
+    handleEndCalls(data);
+    socket.broadcast.emit("available", data.tutorId);
+    updateTutor(data.tutorId, "available");
+    const tutorSocketId = tutorSocketMap[data.tutorId];
+    if (tutorSocketId) {
+      io.to(tutorSocketId).emit("call_ended", data);
+    }
+  } catch (error) {
+    console.error("Error in Early Call End", error);
+  }
+};
+
+//-------------------Handling Call Decline--------------------
+const handleCallDeclined = async (io, socket, data) => {
+  try {
+    console.log("declined", data);
+    updateTime(data.userId, 1, true);
+    handleEndCalls(data);
+    socket.broadcast.emit("available", data.tutorId);
+    updateTutor(data.tutorId, "available");
+    const userSocketId = userSocketMap[data.userId];
+    if (userSocketId) {
+      io.to(userSocketId).emit("call_declined", data);
+    }
+  } catch (error) {
+    console.error("Error in Decline Call", error);
+  }
+};
+
+//--------------------Handling Student call End --------------------------------
+
+const handleCallEnd = (io, socket, data) => {
+  try {
+    handleEndCalls(data);
+    updateTime(data.userId, 3);
+    socket.broadcast.emit("available", data?.tutorId);
+    io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
+    updateTutor(data.tutorId, "available");
+    const tutorSocketId = tutorSocketMap[data.tutorId];
+    if (tutorSocketId) {
+      io.to(tutorSocketId).emit("call_ended", data);
+    }
+  } catch (error) {
+    console.error("Error in call_ended", error);
+  }
+};
+
+//------------Handling Tutor end call --------------------
+
+const handleTutorEndCall = (io, socket, data) => {
+  console.log('the data is',data);
+  try {
+    handleEndCalls(data);
+    updateTime(data.userId, 4);
+    const userSocketId = userSocketMap[data.userId];
+    console.log("tutor_end_the_call", userSocketId);
+    socket.broadcast.emit("available", data.tutorId);
+
+    updateTutor(data.tutorId, "available");
+    if (userSocketId) {
+      console.log("emititng user about tutor end call");
+      io.to(userSocketId).emit("tutor_end_the_call", data);
+    }
+  } catch (error) {
+    console.error("error in tutor_end", error);
+  }
+};
+
+//---------------Handling call accepted --------------------------------
+
+const handleCallAccepted = (io, socket, data) => {
+  try {
+    console.log("accepted", data);
+    updateTime(data.userId, 2, true);
+    const userSocketId = userSocketMap[data?.userId];
+    if (userSocketId) {
+      io.to(userSocketId).emit("call_accepted");
+    }
+  } catch (error) {
+    console.log("Error in Call Accepting", error);
+  }
+};
+
+//----------Handling Call not accepted --------------------------------
+
+const handleCallNotAccepted = async (io, socket, data) => {
+  try {
+    console.log(data);
+    io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
+    updateTime(data.userId, 0, true);
+  } catch (error) {
+    console.error("Error in Call Not Accepting", error);
+  }
+};
+
+//--------------------Handling Disconnection---------------------
+const handleDisconnection = async (io, socket, reason) => {
+  console.log('handling disconnect', socket.id)
+
+  try {
+    for (let tutorId in tutorSocketMap) {
+      if (tutorSocketMap[tutorId] === socket.id) {
+        delete tutorSocketMap[tutorId];
+        console.log(`Tutor ${tutorId} disconnected.`);
+  
+        // Check for active call
+        const activeCall = activeCalls[tutorId];
+        if (activeCall) {
+          const studentSocketId = activeCall.studentSocketId;
+          if (studentSocketId) {
+            updateTime(activeCall.userId, 6);
+            io.to(studentSocketId).emit("call_ended_due_to_disconnect", {
+              message: "The tutor has disconnected. The call has ended.",
+            });
+          }
+          handleEndCalls({ tutorId, userId: activeCall.userId });
+        }
+  
+        socket.broadcast.emit("offline", tutorId);
+        if(tutorId){
+          updateTutor(tutorId, "offline");
+        } 
+      
+        storeDisconnection(reason, "Tutor");
+      }
+    }
+  } catch (e) {
+    console.error("Error in Tutor Disconnection", e);
+  }
+
+  // Check if a student disconnected
+  try {
+    for (let userId in userSocketMap) {
+      console.log('Disconnecting user ', userId);
+      if (userSocketMap[userId] === socket.id) {
+        delete userSocketMap[userId];
+        console.log(`User ${userId} disconnected.`);
+  
+        // Find if this student is in an active call
+        const tutorId = Object.keys(activeCalls).find(
+          (tid) => activeCalls[tid].userId === userId
+        );
+        if (tutorId) {
+          updateTime(userId, 5);
+          const tutorSocketId = activeCalls[tutorId].tutorSocketId;
+          if (tutorSocketId) {
+            io.to(tutorSocketId).emit("call_ended_due_to_disconnect", {
+              message: "The student has disconnected. The call has ended.",
+            });
+            socket.broadcast.emit("available", tutorId);
+            updateTutor(tutorId, "available");
+          }
+          handleEndCalls({ tutorId, userId });
+          storeDisconnection(reason, "Student");
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error in User Disconnection',error);
   }
 };
