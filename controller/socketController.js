@@ -12,6 +12,7 @@ const tutorSocketMap = {};
 const userSocketMap = {};
 const CallIds = {};
 const activeCalls = {};
+const callTimeouts = {};
 
 async function getTutorFcmToken(tutorId) {
   const tutor = await Tutors.findOne({ _id: tutorId });
@@ -43,12 +44,22 @@ module.exports = (io) => {
     socket.on("disconnect", (reason, data) =>
       handleDisconnection(io, socket, reason)
     );
+    socket.on("call_acknowledged", (data) => {
+      handleCallAcknowledgment(data);
+    });
   });
 };
 
 // ------------Updating Tutor------------
 const updateTutor = async (id, status) => {
   try {
+    if(status==='offline'){
+        await Tutors.findByIdAndUpdate(
+        id,
+        { token : null},
+        { new: true }
+      );
+    }
     const x = await Tutors.findByIdAndUpdate(
       id,
       { status: status },
@@ -112,6 +123,7 @@ function handleOnCalls(data) {
 function handleEndCalls(data) {
   try {
     delete activeCalls[data.tutorId];
+
   } catch (error) {
     console.error("error in end calls", error);
   }
@@ -151,26 +163,27 @@ const storeDisconnection = async (logIs, who) => {
 const handleFcmNotifier = async (data, socket) => {
   try {
     const tutorFcmToken = await getTutorFcmToken(data.tutorId);
-    console.log("tutorFcmToken", tutorFcmToken);
+    console.log("tutorFcmToken", data);
     if (tutorFcmToken) {
       console.log("sendin call notification via FCM");
       const message = {
         token: tutorFcmToken,
         data: {
-          agoraToken: `${data?.agoraToken}`,
-          tutorId: `${data?.tutorId}`,
-          userId: `${data?.userId}`,
+          agoraToken: `${data.agoraToken}`,
+          tutorId: `${data.tutorId}`,
+          userId: `${data.userId}`,
+          userName: `${data.userName}`,
         },
       };
-
       try {
         await admin.messaging().send(message);
         startTime(data);
         handleOnCalls(data);
-        socket.broadcast.emit("busy", data.tutorId);
-        updateTutor(data.tutorId, "busy");
+        socket?.broadcast?.emit("busy", data.tutorId);
+        updateTutor(data?.tutorId, "busy");
         return;
       } catch (error) {
+        updateTutor(data.tutorId, "Offline");
         console.error("Error sending FCM notification:", error);
       }
     } else {
@@ -189,6 +202,9 @@ const handleFcmNotifier = async (data, socket) => {
 // -------------Handling tutor Registration -----------------
 
 const handleTutorRegistration = async (tutorId, socket) => {
+  if(!tutorId){
+    return;
+  }
   console.log("Register tutor socketid: ", tutorId);
   try {
     if (tutorId) {
@@ -241,6 +257,10 @@ const hanleCallStart = (io, socket, data) => {
       try {
         socket.to(tutorSocketId).emit("call_started", data);
         console.log("starting data is ", data);
+        callTimeouts[data.tutorId] = setTimeout(() => {
+          console.log(`No acknowledgment from tutor ${data.tutorId}. Sending FCM notification.`);
+          handleFcmNotifier(data);
+        }, 10000); 
         startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);
@@ -339,6 +359,7 @@ const handleCallAccepted = (io, socket, data) => {
     console.log("accepted", data);
     updateTime(data.userId, 2, true);
     const userSocketId = userSocketMap[data?.userId];
+    updateTutorRank(data.tutorId);
     if (userSocketId) {
       io.to(userSocketId).emit("call_accepted");
     }
@@ -425,3 +446,43 @@ const handleDisconnection = async (io, socket, reason) => {
     console.error('Error in User Disconnection',error);
   }
 };
+
+
+// Handling Call Acknowledgment
+const handleCallAcknowledgment = (data) => {
+  console.log(`Acknowledgment received from tutor ${data.tutorId}`);
+
+  // Clear the timeout if it exists
+  if (callTimeouts[data.tutorId]) {
+    clearTimeout(callTimeouts[data.tutorId]);
+    delete callTimeouts[data.tutorId];
+    console.log(`Timeout cleared for tutor ${data.tutorId}`);
+  }
+};
+
+//-------------Updating tutor Rank --------------------
+const updateTutorRank = async (id) => {
+  try {
+  const currentTutor = await Tutors.findById(id);
+  if (!currentTutor) {
+    throw new Error(`Tutor with ID ${tutorId} not found`);
+  };
+  const newRankTutor = await Tutors.findOne({rank : currentTutor.rank+1});
+  if(newRankTutor){
+    const currRank = currentTutor.rank
+    const nextRank = newRankTutor.rank
+  
+  await Promise.all([
+    Tutors.findByIdAndUpdate(id, {rank : nextRank}),
+    Tutors.findByIdAndUpdate(newRankTutor._id, {rank : currRank})
+  ]);
+  console.log(`Ranks updated: Tutor ${currentTutor.name} is now rank ${nextRank}, and Tutor ${newRankTutor.name} is now rank ${currRank}`);
+  }else{
+    await Tutors.findByIdAndUpdate(id, {rank : currentTutor.rank+1})
+    console.log(`Tutor ${currentTutor.name}'s rank incremented to ${currentTutor.rank + 1}`);
+  }
+    
+  }catch (e) {
+    console.error(`Error updating tutor rank ${id}`, e);
+  }
+}

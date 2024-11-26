@@ -18,7 +18,7 @@ exports.createTutor = async (req, res, next) => {
     } else if (existingEmail) {
       return res.status(300).json({ message: "Email Already Exists" });
     }
-
+    await Tutors.updateMany({}, {$inc : {rank : 1}})
     const tutor = new Tutors(formData);
     await tutor.save();
     res.status(200).json({ message: "Tutor Created Successfully" });
@@ -47,6 +47,28 @@ exports.getTutors = async (req, res, next) => {
     next(e);
   }
 };
+exports.getTutorsList = async (req, res, next) => {
+  try {
+    // Fetch all tutors grouped by status
+    const availableTutors = await Tutors.find({ status: "available" }).sort({ rank: 1 }); // Sort by rank ascending
+    const busyTutors = await Tutors.find({ status: "busy" });
+    const offlineTutors = await Tutors.find({ status: "offline" });
+
+    if (availableTutors || busyTutors || offlineTutors) {
+      res.status(200).json({
+        availableTutors,
+        busyTutors,
+        offlineTutors,
+      });
+    } else {
+      res.status(404).json({ message: "No tutors found" });
+    }
+  } catch (e) {
+    console.error("Error fetching tutors:", e);
+    next(e);
+  }
+};
+
 
 exports.updateTutor = async (req, res, next) => {
   const { formData } = req.body;

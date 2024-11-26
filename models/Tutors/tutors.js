@@ -69,6 +69,11 @@ const tutorSchema = new mongoose.Schema({
     password : {
         type : String,
         require : true
+    },
+    rank : {
+        type : Number,
+        default : 1,
+        unique : true,
     }
 });
 
