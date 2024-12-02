@@ -128,9 +128,9 @@ exports.updateRating = async (req, res) => {
 
 
 exports.login = async (req, res, next) => {
-
+  console.log('hi there');
   const {formData} = req.body;
-
+  console.log(formData);
   try {
     const tutor = await Tutors.findOne({ loginId : formData.loginId });
     
@@ -147,7 +147,7 @@ exports.login = async (req, res, next) => {
         jwtKey,
         { expiresIn: `${24 * 30}h` }
       );
-      
+      console.log(token, tutorData);
       res.status(200).json({ token, tutorData });
     } else {
       res.status(400).json({ message: "Invalid credentials" });

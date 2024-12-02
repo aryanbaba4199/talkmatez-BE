@@ -13,6 +13,7 @@ const userSocketMap = {};
 const CallIds = {};
 const activeCalls = {};
 const callTimeouts = {};
+const waitingcall = {};
 
 async function getTutorFcmToken(tutorId) {
   const tutor = await Tutors.findOne({ _id: tutorId });
@@ -38,9 +39,7 @@ module.exports = (io) => {
     socket.on("decline_call", (data) => handleCallDeclined(io, socket, data));
     socket.on("tutor_call_end", (data) => handleTutorEndCall(io, socket, data));
     socket.on("call_accepted", (data) => handleCallAccepted(io, socket, data));
-    socket.on("call_not_accepted", (data) =>
-      handleCallNotAccepted(io, socket, data)
-    );
+    
     socket.on("disconnect", (reason, data) =>
       handleDisconnection(io, socket, reason)
     );
@@ -160,7 +159,7 @@ const storeDisconnection = async (logIs, who) => {
   }
 };
 
-const handleFcmNotifier = async (data, socket) => {
+const handleFcmNotifier = async (data, socket, io) => {
   try {
     const tutorFcmToken = await getTutorFcmToken(data.tutorId);
     console.log("tutorFcmToken", data);
@@ -176,6 +175,9 @@ const handleFcmNotifier = async (data, socket) => {
         },
       };
       try {
+        waitingcall[data.tutorId] = setTimeout(() => {
+          handleCallNotAccepted(io, socket, data)
+        }, 60000);
         await admin.messaging().send(message);
         startTime(data);
         handleOnCalls(data);
@@ -209,8 +211,13 @@ const handleTutorRegistration = async (tutorId, socket) => {
   try {
     if (tutorId) {
       tutorSocketMap[tutorId] = socket.id;
+      const tutorCurrStatus = activeCalls[tutorId]
+      if(tutorCurrStatus && tutorCurrStatus.tutorSocketId){
+       return;
+      }
       socket.broadcast.emit("available", tutorId);
       updateTutor(tutorId, "available");
+      
     }
   } catch (e) {
     console.error("Error in tutor Registration", e);
@@ -261,6 +268,9 @@ const hanleCallStart = (io, socket, data) => {
           console.log(`No acknowledgment from tutor ${data.tutorId}. Sending FCM notification.`);
           handleFcmNotifier(data);
         }, 10000); 
+        waitingcall[data.tutorId] = setTimeout(() => {
+          handleCallNotAccepted(io, socket, data)
+        }, 60000);
         startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);
@@ -282,6 +292,7 @@ const hanleCallStart = (io, socket, data) => {
 
 const handleStudentEarlyCallEnd = (io, socket, data) => {
   try {
+    handleRemoveWaiting(data);
     console.log("student ended connection", data);
     updateTime(data.userId, 0, true);
     handleEndCalls(data);
@@ -299,6 +310,7 @@ const handleStudentEarlyCallEnd = (io, socket, data) => {
 //-------------------Handling Call Decline--------------------
 const handleCallDeclined = async (io, socket, data) => {
   try {
+    handleRemoveWaiting(data);
     console.log("declined", data);
     updateTime(data.userId, 1, true);
     handleEndCalls(data);
@@ -356,6 +368,7 @@ const handleTutorEndCall = (io, socket, data) => {
 
 const handleCallAccepted = (io, socket, data) => {
   try {
+    handleRemoveWaiting(data);
     console.log("accepted", data);
     updateTime(data.userId, 2, true);
     const userSocketId = userSocketMap[data?.userId];
@@ -372,8 +385,13 @@ const handleCallAccepted = (io, socket, data) => {
 
 const handleCallNotAccepted = async (io, socket, data) => {
   try {
-    console.log(data);
+    console.log("Handling Call Not Accepted");
     io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
+    io.to(userSocketMap[data.userId]).emit("call_not_accepted");
+    console.log('emiting tutor available', data.tutorId);
+    socket.broadcast.emit("available", data.tutorId);
+    updateTutor(data.tutorId, "available");
+    console.log('emited')
     updateTime(data.userId, 0, true);
   } catch (error) {
     console.error("Error in Call Not Accepting", error);
@@ -459,6 +477,14 @@ const handleCallAcknowledgment = (data) => {
     console.log(`Timeout cleared for tutor ${data.tutorId}`);
   }
 };
+
+// Remove waiting 
+const handleRemoveWaiting = async(data)=>{
+  if(waitingcall[data.tutorId]){
+    clearTimeout(waitingcall[data.tutorId]);
+    delete waitingcall[data.tutorId];
+  }
+}
 
 //-------------Updating tutor Rank --------------------
 const updateTutorRank = async (id) => {
