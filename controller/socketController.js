@@ -28,6 +28,10 @@ module.exports = (io) => {
     socket.on("register_user", (userId) => {
       handleUserRegistration(userId, socket);
     });
+    socket.on("unregister_tutor", (tutorId) => {
+      console.log('event: unregister')
+      handleTutorUnregistered(socket, tutorId);
+    })
     socket.on("reconnect", (tutorId, tutor) => {
       handleTutorReconnection(tutorId, socket, tutor);
     });
@@ -53,6 +57,7 @@ module.exports = (io) => {
 const updateTutor = async (id, status) => {
   try {
     if(status==='offline'){
+ 
         await Tutors.findByIdAndUpdate(
         id,
         { token : null},
@@ -185,7 +190,7 @@ const handleFcmNotifier = async (data, socket, io) => {
         updateTutor(data?.tutorId, "busy");
         return;
       } catch (error) {
-        updateTutor(data.tutorId, "Offline");
+        handleTutorUnregistered(socket, data.tutorId);
         console.error("Error sending FCM notification:", error);
       }
     } else {
@@ -216,13 +221,20 @@ const handleTutorRegistration = async (tutorId, socket) => {
        return;
       }
       socket.broadcast.emit("available", tutorId);
-      updateTutor(tutorId, "available");
+      updateTutor(tutorId, "available", socket);
       
     }
   } catch (e) {
     console.error("Error in tutor Registration", e);
   }
 };
+
+// -----------Handling tutor unregistered------------------------
+const handleTutorUnregistered = (socket, tutorId)=>{
+  console.log('updating tutor unregistring', tutorId);
+  socket.broadcast.emit("offline", tutorId);
+  updateTutor(tutorId, "offline");
+}
 
 //---------------------Handling User Registration--------------------
 
@@ -237,22 +249,10 @@ const handleUserRegistration = async (userId, socket) => {
   }
 };
 
-//-------------------Handle Reconnection of Tutor --------------------
 
-const handleTutorReconnection = async (tutorId, tutor, socket) => {
-  try {
-    tutorSocketMap[tutorId] = socket.id;
-    if (tutor) {
-      await updateTutor(tutorId, "available");
-      socket.broadcast.emit("available", tutorId);
-    }
-  } catch (error) {
-    console.error("Error in tutor Reconnection", error);
-  }
-};
 
 //----------------Handling Call Start ----------------
-const hanleCallStart = (io, socket, data) => {
+const hanleCallStart = async(io, socket, data) => {
   if (!data) {
     return;
   }
@@ -280,8 +280,14 @@ const hanleCallStart = (io, socket, data) => {
         console.error(e);
       }
     } else {
-      console.log("sending to FCM");
-      handleFcmNotifier(data, socket);
+      const tutor = await Tutors.findById(data.tutorId)
+      if(tutor.status ==='offline') {
+        io.to(userSocketMap[data.userId]).emit('tutor_offline', data)
+      }else{
+        console.log("sending to FCM");
+        handleFcmNotifier(data, socket);
+      }
+      
     }
   } catch (error) {
     console.error("Error in starting call", error);
@@ -421,12 +427,11 @@ const handleDisconnection = async (io, socket, reason) => {
           handleEndCalls({ tutorId, userId: activeCall.userId });
         }
   
-        socket.broadcast.emit("offline", tutorId);
-        if(tutorId){
-          updateTutor(tutorId, "offline");
-        } 
-      
-        storeDisconnection(reason, "Tutor");
+        // socket.broadcast.emit("offline", tutorId);
+        // if(tutorId){
+        //   updateTutor(tutorId, "offline");
+        // } 
+    
       }
     }
   } catch (e) {
