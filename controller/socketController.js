@@ -267,7 +267,7 @@ const hanleCallStart = async(io, socket, data) => {
         callTimeouts[data.tutorId] = setTimeout(() => {
           console.log(`No acknowledgment from tutor ${data.tutorId}. Sending FCM notification.`);
           handleFcmNotifier(data);
-        }, 10000); 
+        }, 3000); 
         waitingcall[data.tutorId] = setTimeout(() => {
           handleCallNotAccepted(io, socket, data)
         }, 60000);
