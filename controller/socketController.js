@@ -270,7 +270,7 @@ const hanleCallStart = async(io, socket, data) => {
         }, 3000); 
         waitingcall[data.tutorId] = setTimeout(() => {
           handleCallNotAccepted(io, socket, data)
-        }, 60000);
+        }, 45000);
         startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);

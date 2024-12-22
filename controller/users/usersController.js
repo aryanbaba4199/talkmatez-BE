@@ -39,9 +39,13 @@ exports.createUser = async (req, res, next) => {
   } catch (err) {
     console.error(err);
     next(err);
-  }
-};
+  }                      
+}; 
 
+exports.deleteUser = async(req, res) =>{
+  const {mobile}  =  req.body;
+  
+}
 exports.getUserDetails = async (req, res, next) => {
   const { mobile } = req.params;
 
@@ -59,7 +63,6 @@ exports.getUserDetails = async (req, res, next) => {
     next(err);
   }
 };
-
 exports.login = async (req, res, next) => {
   console.log("called");
   const { mobile } = req.params;
