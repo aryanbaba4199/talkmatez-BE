@@ -22,7 +22,9 @@ admin.initializeApp({
     type: process.env.FBTYPE,
   project_id: process.env.FBPROJECTID,
   private_key_id: process.env.FB_PRIVATE_KEY_ID, // Add this if it's not already in .env
+  // private_key: process.env.FB_PRIVATE_KEY.replace(/\\n/g, '\n'), // Replace escaped newlines
   private_key: process.env.FB_PRIVATE_KEY.replace(/\\n/g, '\n'), // Replace escaped newlines
+
   client_email: process.env.FB_CLIENT_EMAIL,
   client_id: process.env.FB_CLIENT_ID,
   auth_uri: process.env.FB_AUTH_URI,

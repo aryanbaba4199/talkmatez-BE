@@ -256,8 +256,20 @@ const hanleCallStart = async(io, socket, data) => {
   if (!data) {
     return;
   }
-  console.log("Handling call start ", data)
+  const isTutorBusy = await activeCalls[data.tutorId];
+  console.log("tutor is busy", isTutorBusy);
+  if(isTutorBusy?.tutorSocketId){
+    io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data)
+    console.log('tutor is on call')
+    return;
+  }
+  
   try {
+    const tutorIsOnCall = activeCalls[data.tutorId];
+    if(tutorIsOnCall){
+    socket.to(userSocketMap[data.userId]).emit('tutor_on_call', data)
+    return;
+    }
     const tutorSocketId = tutorSocketMap[data.tutorId];
     console.log("start call tutorId", tutorSocketId, data.tutorId);
     if (tutorSocketId) {
