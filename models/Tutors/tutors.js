@@ -74,7 +74,7 @@ const tutorSchema = new mongoose.Schema({
         type : Number,
         default : 1,
         unique : true,
-    }
+    },
 });
 
 const Tutors = mongoose.model('Tutors', tutorSchema);

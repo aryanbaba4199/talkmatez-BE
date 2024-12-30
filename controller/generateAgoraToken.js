@@ -20,19 +20,20 @@ router.get('/', (req, res) => {
 
   try {
 
-    
+    console.log('user id is',uid)
     if (!channel || !uid) {
       return res.status(400).json({ error: 'Channel and UID are required' });
     }
-
+ console.log('user id is',uid, channel)
     const token = Agora.RtcTokenBuilder.buildTokenWithUid(
       appId, 
       certificate, 
       channel, 
-      uid, 
+      0, 
       role, 
       expiry
     );
+    console.log('Token generated:', token);
  
     return res.status(200).json({ token});
   } catch (err) {

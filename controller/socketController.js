@@ -29,7 +29,8 @@ module.exports = (io) => {
       handleUserRegistration(userId, socket);
     });
     socket.on("unregister_tutor", (tutorId) => {
-      console.log('event: unregister')
+ 
+      
       handleTutorUnregistered(socket, tutorId);
     })
     socket.on("reconnect", (tutorId, tutor) => {
@@ -108,6 +109,7 @@ const startTime = async (data) => {
 };
 
 function handleOnCalls(data) {
+  console.log('teacher is in room ');
   try {
     const tutorSocketId = tutorSocketMap[data.tutorId];
     const userSocketId = userSocketMap[data.userId];
@@ -125,6 +127,8 @@ function handleOnCalls(data) {
 }
 
 function handleEndCalls(data) {
+
+  
   try {
     delete activeCalls[data.tutorId];
 
@@ -136,7 +140,8 @@ function handleEndCalls(data) {
 const updateTime = async (userId, action, call) => {
   try {
     const data = CallIds[userId];
-    console.log("start call data is ", data);
+
+    
     if (!data) {
       console.error(`No call log found for user ${userId}`);
       return;
@@ -167,9 +172,11 @@ const storeDisconnection = async (logIs, who) => {
 const handleFcmNotifier = async (data, socket, io) => {
   try {
     const tutorFcmToken = await getTutorFcmToken(data.tutorId);
-    console.log("tutorFcmToken", data);
+
+    
     if (tutorFcmToken) {
       console.log("sendin call notification via FCM");
+      updateTutor(data?.tutorId, "busy");
       const message = {
         token: tutorFcmToken,
         data: {
@@ -187,7 +194,7 @@ const handleFcmNotifier = async (data, socket, io) => {
         startTime(data);
         handleOnCalls(data);
         socket?.broadcast?.emit("busy", data.tutorId);
-        updateTutor(data?.tutorId, "busy");
+  
         return;
       } catch (error) {
         handleTutorUnregistered(socket, data.tutorId);
@@ -195,7 +202,8 @@ const handleFcmNotifier = async (data, socket, io) => {
       }
     } else {
       const userSocketId = userSocketMap[data.userId];
-      console.log(userSocketId);
+
+      
       if (userSocketId) {
         console.log("network failed to connect");
         socket.to(userSocketId).emit("network_error");
@@ -231,7 +239,8 @@ const handleTutorRegistration = async (tutorId, socket) => {
 
 // -----------Handling tutor unregistered------------------------
 const handleTutorUnregistered = (socket, tutorId)=>{
-  console.log('updating tutor unregistring', tutorId);
+
+  
   socket.broadcast.emit("offline", tutorId);
   updateTutor(tutorId, "offline");
 }
@@ -256,19 +265,26 @@ const hanleCallStart = async(io, socket, data) => {
   if (!data) {
     return;
   }
-  const isTutorBusy = await activeCalls[data.tutorId];
-  console.log("tutor is busy", isTutorBusy);
-  if(isTutorBusy?.tutorSocketId){
-    io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data)
-    console.log('tutor is on call')
-    return;
-  }
+
   
   try {
-    const tutorIsOnCall = activeCalls[data.tutorId];
-    if(tutorIsOnCall){
-    socket.to(userSocketMap[data.userId]).emit('tutor_on_call', data)
-    return;
+    
+    const tutor = await Tutors.findById(data.tutorId);
+    console.log('tutor status', tutor.status);
+    if(tutor.status!=='available'){
+      io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data)
+      console.log('tutor is busy emited')
+      console.log('returning')
+      return; 
+    } 
+
+    const isTutorBusy = activeCalls[data.tutorId];
+    console.log('isTutorBusy', isTutorBusy);
+    console.log('active calls', activeCalls)
+    if(isTutorBusy){
+      console.log('tutor is busy')
+      socket.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data)
+      return;  
     }
     const tutorSocketId = tutorSocketMap[data.tutorId];
     console.log("start call tutorId", tutorSocketId, data.tutorId);
@@ -309,9 +325,15 @@ const hanleCallStart = async(io, socket, data) => {
 //----------------Handling Student Early Call End--------------
 
 const handleStudentEarlyCallEnd = (io, socket, data) => {
+  // const tutorStatus = activeCalls[data.tutorId]
+  // console.log('Student Early Call End', tutorStatus);
+  // console.log('current active calls', activeCalls);
+  // if(tutorStatus){
+  //   return;
+  // }
   try {
     handleRemoveWaiting(data);
-    console.log("student ended connection", data);
+
     updateTime(data.userId, 0, true);
     handleEndCalls(data);
     socket.broadcast.emit("available", data.tutorId);
@@ -329,7 +351,7 @@ const handleStudentEarlyCallEnd = (io, socket, data) => {
 const handleCallDeclined = async (io, socket, data) => {
   try {
     handleRemoveWaiting(data);
-    console.log("declined", data);
+
     updateTime(data.userId, 1, true);
     handleEndCalls(data);
     socket.broadcast.emit("available", data.tutorId);
@@ -364,17 +386,17 @@ const handleCallEnd = (io, socket, data) => {
 //------------Handling Tutor end call --------------------
 
 const handleTutorEndCall = (io, socket, data) => {
-  console.log('the data is',data);
+
   try {
     handleEndCalls(data);
     updateTime(data.userId, 4);
     const userSocketId = userSocketMap[data.userId];
-    console.log("tutor_end_the_call", userSocketId);
+
     socket.broadcast.emit("available", data.tutorId);
 
     updateTutor(data.tutorId, "available");
     if (userSocketId) {
-      console.log("emititng user about tutor end call");
+    
       io.to(userSocketId).emit("tutor_end_the_call", data);
     }
   } catch (error) {
@@ -387,7 +409,7 @@ const handleTutorEndCall = (io, socket, data) => {
 const handleCallAccepted = (io, socket, data) => {
   try {
     handleRemoveWaiting(data);
-    console.log("accepted", data);
+
     updateTime(data.userId, 2, true);
     const userSocketId = userSocketMap[data?.userId];
     updateTutorRank(data.tutorId);
@@ -395,7 +417,7 @@ const handleCallAccepted = (io, socket, data) => {
       io.to(userSocketId).emit("call_accepted");
     }
   } catch (error) {
-    console.log("Error in Call Accepting", error);
+    console.error("Error in Call Accepting", error);
   }
 };
 
@@ -403,13 +425,16 @@ const handleCallAccepted = (io, socket, data) => {
 
 const handleCallNotAccepted = async (io, socket, data) => {
   try {
-    console.log("Handling Call Not Accepted");
+
+    
     io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
     io.to(userSocketMap[data.userId]).emit("call_not_accepted");
-    console.log('emiting tutor available', data.tutorId);
+
+    
     socket.broadcast.emit("available", data.tutorId);
     updateTutor(data.tutorId, "available");
-    console.log('emited')
+
+    
     updateTime(data.userId, 0, true);
   } catch (error) {
     console.error("Error in Call Not Accepting", error);
@@ -418,13 +443,15 @@ const handleCallNotAccepted = async (io, socket, data) => {
 
 //--------------------Handling Disconnection---------------------
 const handleDisconnection = async (io, socket, reason) => {
-  console.log('handling disconnect', socket.id)
+ 
+  
 
   try {
     for (let tutorId in tutorSocketMap) {
       if (tutorSocketMap[tutorId] === socket.id) {
         delete tutorSocketMap[tutorId];
-        console.log(`Tutor ${tutorId} disconnected.`);
+  
+        
   
         // Check for active call
         const activeCall = activeCalls[tutorId];
@@ -453,10 +480,12 @@ const handleDisconnection = async (io, socket, reason) => {
   // Check if a student disconnected
   try {
     for (let userId in userSocketMap) {
-      console.log('Disconnecting user ', userId);
+ 
+      
       if (userSocketMap[userId] === socket.id) {
         delete userSocketMap[userId];
-        console.log(`User ${userId} disconnected.`);
+      
+        
   
         // Find if this student is in an active call
         const tutorId = Object.keys(activeCalls).find(
@@ -491,7 +520,7 @@ const handleCallAcknowledgment = (data) => {
   if (callTimeouts[data.tutorId]) {
     clearTimeout(callTimeouts[data.tutorId]);
     delete callTimeouts[data.tutorId];
-    console.log(`Timeout cleared for tutor ${data.tutorId}`);
+    
   }
 };
 
@@ -519,10 +548,8 @@ const updateTutorRank = async (id) => {
     Tutors.findByIdAndUpdate(id, {rank : nextRank}),
     Tutors.findByIdAndUpdate(newRankTutor._id, {rank : currRank})
   ]);
-  console.log(`Ranks updated: Tutor ${currentTutor.name} is now rank ${nextRank}, and Tutor ${newRankTutor.name} is now rank ${currRank}`);
   }else{
     await Tutors.findByIdAndUpdate(id, {rank : currentTutor.rank+1})
-    console.log(`Tutor ${currentTutor.name}'s rank incremented to ${currentTutor.rank + 1}`);
   }
     
   }catch (e) {
