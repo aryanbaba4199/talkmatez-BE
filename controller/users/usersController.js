@@ -1,5 +1,6 @@
 const Tutors = require("../../models/Tutors/tutors");
 const User = require("../../models/users/users");
+const Transaction = require("../../models/users/txn");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -7,14 +8,14 @@ const jwtKey = process.env.JWT_SECRET;
 
 exports.getuserbyid = async (req, res, next) => {
   const { id } = req.params;
-  try{
+  try {
     const user = await User.findById(id);
     res.status(200).json(user);
-  }catch(err){
+  } catch (err) {
     console.error(err);
-    res.status(500).json({message: err.message});
+    res.status(500).json({ message: err.message });
   }
-}
+};
 
 exports.createUser = async (req, res, next) => {
   const { formData } = req.body;
@@ -39,18 +40,17 @@ exports.createUser = async (req, res, next) => {
   } catch (err) {
     console.error(err);
     next(err);
-  }                      
-}; 
+  }
+};
 
-exports.deleteUser = async(req, res) =>{
-  const {mobile}  =  req.body;
-  
-}
+exports.deleteUser = async (req, res) => {
+  const { mobile } = req.body;
+};
 exports.getUserDetails = async (req, res, next) => {
   const { mobile } = req.params;
 
   try {
-    const user = await User.findOne({ mobile : JSON.parse(mobile)});
+    const user = await User.findOne({ mobile: JSON.parse(mobile) });
 
     if (!user) {
       res.status(404).json({ message: "User not found" });
@@ -89,27 +89,28 @@ exports.login = async (req, res, next) => {
   }
 };
 
-exports.getUsers = async(req, res, next) => {
-  try{
+exports.getUsers = async (req, res, next) => {
+  try {
     const users = await User.find();
-    res.status(200).json(users); 
-  }catch (err) {
+    res.status(200).json(users);
+  } catch (err) {
     console.error(err);
   }
-}
+};
 
-exports.updateUser = async(req, res, next) => {
-  
-  const {formData} = req.body;
-  try{
-    const user = await User.findByIdAndUpdate(formData._id, formData, {new:true});
-    if(user){
-   
-      res.status(200).json({message:'success'})
-    }else{
-      res.status(404).json({message : 'Error updating user'});
+exports.updateUser = async (req, res, next) => {
+  const { formData } = req.body;
+
+  try {
+    const user = await User.findByIdAndUpdate(formData._id, formData, {
+      new: true,
+    });
+    if (user) {
+      res.status(200).json({ message: "success" });
+    } else {
+      res.status(404).json({ message: "Error updating user" });
     }
-  }catch(err){
+  } catch (err) {
     console.error(err);
     next(err);
   }
@@ -119,41 +120,62 @@ exports.updateCoins = async (req, res, next) => {
   const formData = req.body;
 
   try {
-    // Await the update and get the updated user data
-    const user = await User.findByIdAndUpdate(
-      formData.id, 
-      { coins: formData.coins }, 
-      { new: true }  // Ensures the updated document is returned
-    );
-  
-    
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    await handleTransaction(formData);
+
+    const isUser = await User.findById(formData.userId);
+    if (!isUser) {
+      return res.status(404).json({ message: "User not found" });
     }
-    
+
+    const user = await User.findByIdAndUpdate(
+      formData.userId,
+      { coins: formData.coins + parseInt(isUser.coins) },
+      { new: true }
+    );
+    console.log(user);
+
     res.status(200).json(user);
   } catch (err) {
-    console.error('Error updating coins:', err);  
-    res.status(500).json({ message: 'Error updating coins' });
+    console.error("Error updating coins:", err);
+    res.status(500).json({ message: "Error updating coins" });
+  }
+};
+
+exports.uNtDetails = async (req, res, next) => {
+  const { userId, tutorId } = req.body;
+
+  if (!userId && !tutorId) {
+    return res.status(400).json({ message: "!userId or TutorId" });
+  }
+  try {
+    const user = await User.findById({ _id: userId });
+    const tutor = await Tutors.findById({ _id: tutorId });
+    res.status(200).json({ user, tutor });
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
 
-exports.uNtDetails = async(req, res, next)=>{
-  
-  const {userId, tutorId} = req.body;
-  
-  if(!userId && !tutorId){
-    return res.status(400).json({message : '!userId or TutorId'})
-  }
-  try{
-    const user = await User.findById({_id : userId})
-  const tutor = await Tutors.findById({_id : tutorId})
-  res.status(200).json({user, tutor})
-  }catch(err){
+exports.getTransaction = async(req, res, next) => {
+  const { id } = req.params;
+console.log(id);
+  try {
+    const transactions = await Transaction.find({userId: id});
+    res.status(200).json(transactions);
+  } catch (err) {
     console.error(err);
     next(err);
   }
-
-  
 }
+
+const handleTransaction = async (formData) => {
+  try {
+    const txn = new Transaction(formData);
+    await txn.save();
+    return "success";
+  } catch (err) {
+    console.error("Error handling transaction:", err);
+  }
+};

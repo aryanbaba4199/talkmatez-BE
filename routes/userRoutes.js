@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {getUserDetails, createUser, login, getUsers, updateUser, uNtDetails, getuserbyid, updateCoins} = require('../controller/users/usersController');
+const {getUserDetails, createUser, login, getUsers, updateUser, uNtDetails, getuserbyid, updateCoins, getTransaction} = require('../controller/users/usersController');
 const {CallTiming, updateCallTiming, callDetails, fullLogs}  = require('../controller/users/CallController');
 
 router.post('/createUser', createUser);
@@ -18,6 +18,7 @@ router.put('/endCall', updateCallTiming);
 router.get('/calllogs/:id', callDetails);
 router.get('/admincalllogs' , fullLogs);
 router.post('/userandtutordetails',uNtDetails )
+router.get('/getTransaction/:id', getTransaction) 
 
 
 
