@@ -1,5 +1,6 @@
 
 const Tutors = require("../../models/Tutors/tutors");
+const User = require("../../models/users/users");
 const SocketLogs = require("../../models/Others/socket");
 
 exports.createTutor = async(req, res, next)=>{
@@ -66,5 +67,20 @@ exports.socketLogs = async(req, res, next) => {
     }catch(e){
         console.error(e);
         res.status(500).send({message: 'not found'});
+    }
+}
+
+exports.updateCoinsbyAdmin = async(req, res, next) => {
+    const {userId, coins} = req.body;
+    console.log(userId, coins);
+    try{
+        const user = await User.findByIdAndUpdate(userId, {coins: coins}, {new: true});
+        if(!user){
+            return res.status(404).send({message: 'User not found'});
+        }
+        return res.status(200).send({message: 'Coins updated successfully'});
+    }catch(e){
+        console.error(e);
+        next(e);
     }
 }
