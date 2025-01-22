@@ -215,3 +215,63 @@ exports.dashboardData = async(req, res, next) => {
     res.status(500).json({ message: " Server error" });
   }
 };
+
+
+exports.getMissedCalls = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const missedCalls = await CallLogs.find({
+      secUserId: id,
+      connection: false,
+      action: { $ne: 1 },
+    });
+    res.status(200).json(missedCalls);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getReceivedCalls = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const receivedCalls = await CallLogs.find({
+      secUserId: id,
+      connection: true,
+      action: { $ne: 6 },
+    });
+    res.status(200).json(receivedCalls);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getRejectedCalls = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const rejectedCalls = await CallLogs.find({
+      secUserId: id,
+      action: 1,
+    });
+    res.status(200).json(rejectedCalls);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getDisconnectedCalls = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const acceptedCalls = await CallLogs.find({
+      secUserId: id,
+      connection: true,
+      action: { $ne: 6 },
+    });
+    res.status(200).json(acceptedCalls);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
