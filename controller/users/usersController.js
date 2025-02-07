@@ -187,7 +187,7 @@ console.log(id);
 
 exports.verifyTransaction = async(req, res, next) => {
   const { id } = req.params;
-  console.log('Verifying transaction', id);
+
   try{
     const txn = await Transaction.findOne({txnId: id});
     console.log('Found transaction', txn);
