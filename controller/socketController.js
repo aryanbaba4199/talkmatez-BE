@@ -51,8 +51,18 @@ module.exports = (io) => {
     socket.on("call_acknowledged", (data) => {
       handleCallAcknowledgment(data);
     });
+    socket.on("ping", (id)=>heartbeat(io, socket, id))
   });
 };
+
+const heartbeat = (io, socket, id)=>{
+  try{
+    console.log('ping received')
+    io.to(userSocketMap[id]).emit('pong')
+  }catch(e){
+    console.error('heartbeat error', e);
+  }
+}
 
 // ------------Updating Tutor------------
 const updateTutor = async (id, status) => {
