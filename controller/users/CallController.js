@@ -143,7 +143,7 @@ exports.callDetails = async (req, res, next) => {
 
 exports.tutorCalllogs = async (req, res, next) => {
   const { id, page = 1 } = req.params;
-  const limit = 20;
+  const limit = 100;
   const skip = (page - 1) * limit;
 
   try {
@@ -161,6 +161,9 @@ exports.tutorCalllogs = async (req, res, next) => {
         studentName: log.userId ? log.userId.name : "Unknown Student",
         start: log.start,
         end: log.end,
+        studentUsedCoins : log.studentStartCoin-log.studentEndCoin, 
+        action : log.action,
+        connection : log.connection,
       }));
 
       return res.status(200).json({ callDetails });

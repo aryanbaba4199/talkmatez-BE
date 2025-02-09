@@ -199,15 +199,19 @@ const handleFcmNotifier = async (data, socket, io) => {
       try {
         waitingcall[data.tutorId] = setTimeout(() => {
           handleCallNotAccepted(io, socket, data)
-        }, 60000);
-        await admin.messaging().send(message);
+        }, 45000);
+        const res = await admin.messaging().send(message);
+        console.log('fcm message id', res)
         startTime(data);
         handleOnCalls(data);
-        socket?.broadcast?.emit("busy", data.tutorId);
+        socket.broadcast.emit("busy", data.tutorId);
   
         return;
       } catch (error) {
-        handleTutorUnregistered(socket, data.tutorId);
+        if (error.code === "messaging/invalid-registration-token" || error.code === "messaging/registration-token-not-registered") {
+          handleTutorUnregistered(socket, data.tutorId);
+        }
+        
         console.error("Error sending FCM notification:", error);
       }
     } else {
@@ -272,6 +276,7 @@ const handleUserRegistration = async (userId, socket) => {
 
 //----------------Handling Call Start ----------------
 const hanleCallStart = async(io, socket, data) => {
+  console.log("call started");
   if (!data) {
     return;
   }
@@ -342,12 +347,18 @@ const handleStudentEarlyCallEnd = (io, socket, data) => {
   //   return;
   // }
   try {
+    console.log('Student Early Call', data);
     handleRemoveWaiting(data);
 
     updateTime(data.userId, 0, true);
     handleEndCalls(data);
-    socket.broadcast.emit("available", data.tutorId);
-    updateTutor(data.tutorId, "available");
+    try{
+      socket.broadcast.emit("available", data.tutorId);
+      updateTutor(data.tutorId, "available");
+    }catch(e){
+      console.error('error in socket early end', e);
+    }
+    
     const tutorSocketId = tutorSocketMap[data.tutorId];
     if (tutorSocketId) {
       io.to(tutorSocketId).emit("call_ended", data);
@@ -359,6 +370,7 @@ const handleStudentEarlyCallEnd = (io, socket, data) => {
 
 //-------------------Handling Call Decline--------------------
 const handleCallDeclined = async (io, socket, data) => {
+  console.log('call declined by tutor');
   try {
     handleRemoveWaiting(data);
 
@@ -377,11 +389,13 @@ const handleCallDeclined = async (io, socket, data) => {
 
 //--------------------Handling Student call End --------------------------------
 
-const handleCallEnd = (io, socket, data) => {
+const handleCallEnd = async(io, socket, data) => {
+  console.log('student ended the call before pick')
   try {
-    handleEndCalls(data);
-    updateTime(data.userId, 3);
-    socket.broadcast.emit("available", data?.tutorId);
+     handleEndCalls(data);
+    await updateTime(data.userId, 3);
+    socket.broadcast.emit("available", data.tutorId);
+    console.log('broadcasting tutor available', data.tutorId);
     io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
     updateTutor(data.tutorId, "available");
     const tutorSocketId = tutorSocketMap[data.tutorId];
@@ -403,7 +417,7 @@ const handleTutorEndCall = (io, socket, data) => {
     const userSocketId = userSocketMap[data.userId];
 
     socket.broadcast.emit("available", data.tutorId);
-
+    console.log('broadcasting tutor available');
     updateTutor(data.tutorId, "available");
     if (userSocketId) {
     
@@ -437,8 +451,8 @@ const handleCallNotAccepted = async (io, socket, data) => {
   try {
 
     
-    io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
-    io.to(userSocketMap[data.userId]).emit("call_not_accepted");
+    io && io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
+    io && io.to(userSocketMap[data.userId]).emit("call_not_accepted");
 
     
     socket.broadcast.emit("available", data.tutorId);
