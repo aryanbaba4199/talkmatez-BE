@@ -1,9 +1,11 @@
 const Notification = require('../../models/users/notification')
+const WelcomePackage = require('../../models/helpers/welcome')
 
 const Tutors = require("../../models/Tutors/tutors");
 const User = require("../../models/users/users");
 const Transaction = require("../../models/users/txn");
 const jwt = require("jsonwebtoken");
+const { default: mongoose } = require('mongoose');
 require("dotenv").config();
 
 const jwtKey = process.env.JWT_SECRET;
@@ -20,30 +22,55 @@ exports.getuserbyid = async (req, res, next) => {
 };
 
 exports.createUser = async (req, res, next) => {
-  const { formData } = req.body;
-  try {
-    const exisitingUser = await User.findOne({ mobile: formData.mobile });
+  const {formData} = req.body;
 
-    if (exisitingUser) {
-      res.status(201).json({ message: "User Already Registered" });
-    } else {
+  try {
+      const existingUser = await User.findOne({ mobile: formData.mobile });
+
+      if (existingUser) {
+          return res.status(201).json({ message: "User Already Registered" });
+      }
+
+      const welcomePackage = await WelcomePackage.findOne();
+
+      if (!welcomePackage || !welcomePackage._id) {
+          return res.status(400).json({ message: "No valid welcome package found" });
+      }
+
+      const dailyCoins = welcomePackage.coinValue / welcomePackage.expiry;
+
+      // Ensure the silverCoins array contains the required `type` field
+      formData.silverCoins = [{
+          coins: dailyCoins,
+          expiry: 1,
+          time: Date.now(),
+          pkgId: new mongoose.Types.ObjectId(welcomePackage._id),
+          type: "welcome_bonus"  // Ensure 'type' field is added
+      }];
+
+      formData.silverCoinExpiry = welcomePackage.expiry;
+
       const user = new User(formData);
       await user.save();
+
       const token = jwt.sign(
-        {
-          userId: user._id,
-          mobile: user.mobile,
-        },
-        jwtKey,
-        { expiresIn: `${24 * 30}h` }
+          {
+              userId: user._id,
+              mobile: user.mobile,
+          },
+          jwtKey,
+          { expiresIn: `${24 * 30}h` }
       );
+
       res.status(200).json({ token: token, user: user });
-    }
   } catch (err) {
-    console.error(err);
-    next(err);
+      console.error(err);
+      next(err);
   }
 };
+
+
+
 
 exports.deleteUser = async (req, res) => {
   const { mobile } = req.body;
@@ -271,4 +298,6 @@ exports.createNotification = async(req, res) => {
     console.error(err);
   }
 }
+
+
 

@@ -50,6 +50,10 @@ const tutorSchema = new mongoose.Schema({
         type : Number,
         default : 0
     }, 
+    silverCoins : {
+        type : Number,
+        default : 0
+    },
     rate : {
         type : Number,
         require : true, 

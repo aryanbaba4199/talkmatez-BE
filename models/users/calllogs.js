@@ -28,10 +28,20 @@ const callSchema = new mongoose.Schema({
     studentStartCoin : {
         type : Number,
     }, 
+    studentStartSilverCoin : {
+        type : Number,
+    },
     studentEndCoin : {
         type : Number,
     
     }, 
+    srudentEndSilverCoins : {
+        type : Number,
+    },
+    freeMinutes : {
+        type : Number,
+        default : 0,
+    },
     action : {
         type : String,
         default : 0,

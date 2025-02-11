@@ -13,6 +13,8 @@ const userRoutes = require("./routes/userRoutes");
 const socketHandlers = require("./controller/socketController");
 const db = require("./Database/db");
 const payments = require('./routes/paymentRoutes')
+const utilRoutes = require('./routes/utilRoutes')
+require("./utils/cronjob");
 
 require("dotenv").config();
 db();
@@ -55,6 +57,9 @@ app.use("/admin/helpers", GetLanguages);
 app.use("/admin", iamadmin);
 app.use("/generateToken", GenerateToken);
 app.use("/payments", payments)
+app.use("/cronjobs", utilRoutes);
+
+
 
 app.get("/", (req, res) => {
   res.status(200).send("Talkmatez Service is running!");

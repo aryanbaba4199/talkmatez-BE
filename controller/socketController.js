@@ -95,8 +95,12 @@ const startTime = async (data) => {
     const tutor = await Tutors.findById(tutorId);
     const user = await User.findById(userId);
 
+    
+
     const formData = {
       studentStartCoin: user.coins,
+      studentStartSilverCoin: user.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0),
+      freeMinutes: Math.floor(user.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0) / tutor.rate),
       tutorStartCoin: tutor.coins,
       start: 0,
       userId: user._id,

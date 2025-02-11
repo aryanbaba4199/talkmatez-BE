@@ -35,73 +35,111 @@ exports.updateCallTiming = async (req, res, next) => {
   const { data, action, call } = req.body;
 
   if (!data) {
-    console.log("no data found");
-    return res.status(400).json({ message: "No data found in request body" });
+    console.log("No data found in request body");
+    return res.status(400).json({ message: "No data found" });
   }
 
-
   try {
-    
     const currentTime = new Date().toISOString();
+    const startLog = await CallLogs.findById(data._id);
+    if (!startLog) {
+      console.error("Call log not found");
+      return res.status(404).json({ message: "Call log not found" });
+    }
 
-    const startTime = data.start;
-    let callDuration = call ? 0  : (new Date(currentTime) - new Date(startTime)) / 1000; 
+    const startTime = startLog.start;
+    let callDuration = call ? 0 : (Date.now() - new Date(startTime)) / 1000;
 
-    console.log('call duration: ' + callDuration)
-    const coinDuration = Math.ceil(callDuration / 60);
-    console.log('coin duration: ' + coinDuration)
+    console.log("Call Duration (seconds):", callDuration);
 
+    let coinDuration = Math.max(0, Math.round(callDuration / 60 - startLog.freeMinutes));
+    console.log("Coin Duration (minutes after free minutes used):", coinDuration);
 
     const tutor = await Tutors.findById(data.secUserId);
     const user = await User.findById(data.userId);
+    if (!tutor || !user) {
+      console.error("Tutor or User not found");
+      return res.status(404).json({ message: "Tutor or User not found" });
+    }
 
-  
+    // **Calculate earnings for tutor**
     const earnCoin = tutor.rate * coinDuration;
-    console.log('earn coin is ',earnCoin)
+    const earnSilverCoins = earnCoin === 0 ? (callDuration / 60) * tutor.rate : 0;
+
+    // Calculate total earnings (rounded to nearest integer)
+    const totalEarnings = Math.round(earnCoin + earnSilverCoins);
+
+    console.log("Total Earnings (coins):", totalEarnings);
+
+    // **Update Tutor Coins (only regular coins)**
     const updatedTutor = await Tutors.findByIdAndUpdate(
       data.secUserId,
-      { coins: Math.round(tutor.coins + earnCoin) },
+      {
+        $inc: { coins: totalEarnings }
+      },
       { new: true }
     );
+
+    // **Deduct from User Coins**
+    let remainingDeduction = totalEarnings;
+    let updatedSilverCoins = [...user.silverCoins];
+
+    // Sort silver coins by oldest first
+    updatedSilverCoins.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    // Deduct from silver coins first
+    for (let i = 0; i < updatedSilverCoins.length; i++) {
+      if (remainingDeduction <= 0) break;
+      const silverCoinEntry = updatedSilverCoins[i];
+      if (silverCoinEntry.coins >= remainingDeduction) {
+        silverCoinEntry.coins -= remainingDeduction;
+        remainingDeduction = 0;
+      } else {
+        remainingDeduction -= silverCoinEntry.coins;
+        silverCoinEntry.coins = 0;
+      }
+    }
+
+    // Remove silver coin entries with zero coins
+    updatedSilverCoins = updatedSilverCoins.filter(coin => coin.coins > 0);
+
+    // Deduct remaining from regular coins
+    const finalCoinDeduction = remainingDeduction;
 
     const updatedUser = await User.findByIdAndUpdate(
       data.userId,
-      { coins: Math.round(user.coins - earnCoin) },
+      {
+        $set: { silverCoins: updatedSilverCoins },
+        $inc: { coins: -finalCoinDeduction }
+      },
       { new: true }
     );
 
+    console.log("User Coins After Deduction:", updatedUser?.coins || "Not Updated");
+    console.log("User Silver Coins After Deduction:", updatedUser?.silverCoins || "Not Updated");
+
+    // **Update Call Log**
+    const callUpdateData = {
+      end: currentTime,
+      tutorEndCoin: updatedTutor.coins,
+      studentEndCoin: updatedUser?.coins || 0,
+      action: action,
+    };
+
     if (action === 2) {
-      const updatedCall = await CallLogs.findByIdAndUpdate(
-        data._id,
-        {
-          start: currentTime,
-          end: currentTime,
-          tutorEndCoin: updatedTutor.coins,
-          studentEndCoin: updatedUser.coins,
-          action: action,
-          connection: true,
-        },
-        { new: true }
-      );
-      return updatedCall;
-    } else {
-      const updatedCall = await CallLogs.findByIdAndUpdate(
-        data._id,
-        {
-          end: currentTime,
-          tutorEndCoin: updatedTutor.coins,
-          studentEndCoin: updatedUser.coins,
-          action: action,
-        },
-        { new: true }
-      );
-      return updatedCall;
+      callUpdateData.start = currentTime;
+      callUpdateData.connection = true;
     }
+
+    await CallLogs.findByIdAndUpdate(data._id, callUpdateData, { new: true });
+    return;
+
   } catch (err) {
-    console.log("Error updating call timing:", err);
-    res.status(500).json(err);
+    console.error("Error updating call timing:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 
 exports.callDetails = async (req, res, next) => {
