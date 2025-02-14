@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 const {getTutors, createTutor, updateTutor, login, updateToken, getTutor, dashboardData, updateRating, getTutorsList
-    ,getDisconnectedCalls, getMissedCalls, getReceivedCalls, getRejectedCalls
+    ,getDisconnectedCalls, getMissedCalls, getReceivedCalls, getRejectedCalls,
+    updateFirstTime
 } = require('../controller/Tutors/tutorsController');
 const {tutorCalllogs} = require('../controller/users/CallController');
 
@@ -18,12 +19,14 @@ router.get('/getTutor/:id', getTutor);
 router.get('/calllogs/:id', tutorCalllogs);
 router.get('/dashboard/:id', dashboardData);
 router.put('/updateRating/:id', updateRating);
+router.get('/updateFirstTime/:id', updateFirstTime);
 
 // Call logs
 router.get('/calls/missed/:id', getMissedCalls);
 router.get('/calls/accepted/:id', getReceivedCalls);
 router.get('/calls/rejected/:id', getRejectedCalls);
 router.get('/calls/disconnected/:id', getDisconnectedCalls);
+
 
 
 

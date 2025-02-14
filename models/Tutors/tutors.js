@@ -79,6 +79,10 @@ const tutorSchema = new mongoose.Schema({
         default : 1,
         unique : true,
     },
+    firstTime : {
+        type : Boolean,
+        default : true
+    }
 });
 
 const Tutors = mongoose.model('Tutors', tutorSchema);

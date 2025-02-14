@@ -275,3 +275,22 @@ exports.getDisconnectedCalls = async (req, res, next) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.updateFirstTime = async(req, res, next) => {
+  try{
+    const {id} = req.params;
+    const updatedTutor = await Tutors.findByIdAndUpdate(
+      { _id: id },
+      { firstTime: false },
+      { new: true }
+    );
+    console.log('tutor updated');
+    if (!updatedTutor) {
+      return res.status(404).json({ message: "Tutor not found" });
+    }
+    res.status(200).json({ message: "First time updated successfully" });
+  }catch(e){
+    console.error(e);
+    next(e);
+  }
+};
