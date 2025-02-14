@@ -52,7 +52,7 @@ exports.updateCallTiming = async (req, res, next) => {
 
     console.log("Call Duration (seconds):", callDuration);
 
-    let coinDuration = Math.max(0, Math.round(callDuration / 60 - startLog.freeMinutes));
+    let coinDuration = Math.max(0, Math.ceil(callDuration / 60 - startLog.freeMinutes));
     console.log("Coin Duration (minutes after free minutes used):", coinDuration);
 
     const tutor = await Tutors.findById(data.secUserId);

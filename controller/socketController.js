@@ -53,12 +53,13 @@ module.exports = (io) => {
       handleCallAcknowledgment(data);
     });
     socket.on("ping", (id)=>heartbeat(io, socket, id))
+    socket.on('tping', (id)=>{console.log('teacher', id),heartbeat(io, socket, id)})
   });
 };
 
 const heartbeat = (io, socket, id)=>{
   try{
-    console.log('pong', id);
+    // console.log('pong', id);
     io.to(userSocketMap[id]).emit('pong')
   }catch(e){
     console.error('heartbeat error', e);
@@ -67,25 +68,24 @@ const heartbeat = (io, socket, id)=>{
 
 // ------------Updating Tutor------------
 const updateTutor = async (id, status) => {
-  console.log('updating tutor status', status);
+  console.log('Updating tutor status:', status, 'for ID:', id);
   try {
-    if(status==='offline'){
-
-        await Tutors.findByIdAndUpdate(
-        id,
-        { token : null},
-        { new: true }
-      );
+    const updateFields = { status };
+    if (status === 'offline') {
+      updateFields.token = null;
     }
-    const x = await Tutors.findByIdAndUpdate(
+    const updatedTutor = await Tutors.findByIdAndUpdate(
       id,
-      { status: status },
+      updateFields,
       { new: true }
     );
+
+   
   } catch (e) {
-    console.log("error updating", e);
+    console.error("Error updating tutor:", e.message || e);
   }
 };
+
 
 //---------------Storing Start Time----------------
 
@@ -147,7 +147,7 @@ function handleEndCalls(data) {
   
   try {
     delete activeCalls[data.tutorId];
-
+    delete waitingcall[data.tutorId];
   } catch (error) {
     console.error("error in end calls", error);
   }
@@ -211,12 +211,12 @@ const handleFcmNotifier = async (data, socket, io) => {
         startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);
-  
         return;
       } catch (error) {
         console.log(error);
         if (error?.errorInfo?.code === "messaging/invalid-registration-token" || error?.errorInfo?.code === "messaging/registration-token-not-registered") {
           console.log('updating fcm token failed');
+          handleEndCalls(data)
           handleTutorUnregistered(socket, data.tutorId);
           await handleCallNotAccepted();
         }
@@ -356,13 +356,14 @@ const handleStudentEarlyCallEnd = (io, socket, data) => {
   // console.log('current active calls', activeCalls);
   if(tutorStatus){
     handleEndCalls(data);
+    console.log('Student Early Call End emiting available')
     socket.broadcast.emit("available", data.tutorId);
   }
 
   try {
     console.log('Student Early Call', data);
     handleRemoveWaiting(data);
-
+    
     updateTime(data.userId, 0, true);
     handleEndCalls(data);
     try{
@@ -373,6 +374,7 @@ const handleStudentEarlyCallEnd = (io, socket, data) => {
     }
     
     const tutorSocketId = tutorSocketMap[data.tutorId];
+    console.log('early end tutor socket id ', tutorSocketId, tutorSocketMap);
     if (tutorSocketId) {
       io.to(tutorSocketId).emit("call_ended", data);
       console.log('informed tutor about early end');
