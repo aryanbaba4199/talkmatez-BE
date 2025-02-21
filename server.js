@@ -47,6 +47,13 @@ const io = new Server(server, {
 
 // Use socket handlers
 socketHandlers(io);
+const startPeriodicLog = () => {
+  setInterval(() => {
+    io.emit('pong');
+  }, 3000); // Runs every 3 seconds
+};
+
+startPeriodicLog();
 
 app.use(cors());
 app.use(express.json());

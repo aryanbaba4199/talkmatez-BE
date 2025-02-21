@@ -17,21 +17,29 @@ const callSchema = new mongoose.Schema({
         type: String,
         required: true
     }, 
-    tutorStartCoin : {
+    tutorStartGoldCoin : {
         type : Number,
-      
+        default : 0,
     }, 
-    tutorEndCoin : {
+    tutorStartSilverCoin : {
+        type : Number,
+        default : 0,
+    },
+
+    tutorEndGoldCoin : {
         type : Number,
      
     }, 
-    studentStartCoin : {
+    tutorEndSilverCoin : {
+        type : Number,
+    },
+    studentStartGoldCoin : {
         type : Number,
     }, 
     studentStartSilverCoin : {
         type : Number,
     },
-    studentEndCoin : {
+    studentEndGoldCoin : {
         type : Number,
     
     }, 
@@ -49,7 +57,13 @@ const callSchema = new mongoose.Schema({
     connection : {
         type : Boolean,
         default : false,
+    },
+    charge : {
+        type : Number,
+        default : 0,
     }
+    
+    
 })
 
 const CallLogs = mongoose.model('CallLogs', callSchema);

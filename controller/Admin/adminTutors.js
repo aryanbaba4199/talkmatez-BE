@@ -1,7 +1,7 @@
 
 const Tutors = require("../../models/Tutors/tutors");
 const User = require("../../models/users/users");
-const SocketLogs = require("../../models/Others/socket");
+
 
 exports.createTutor = async(req, res, next)=>{
    const {formData} = req.body;
@@ -60,15 +60,7 @@ exports.deleteTutor = async(req, res, next)=>{
     }
 }
 
-exports.socketLogs = async(req, res, next) => {
-    try{
-        const data = await SocketLogs.find();
-        res.status(200).send(data);
-    }catch(e){
-        console.error(e);
-        res.status(500).send({message: 'not found'});
-    }
-}
+
 
 exports.updateCoinsbyAdmin = async(req, res, next) => {
     const {userId, coins} = req.body;

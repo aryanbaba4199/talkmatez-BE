@@ -93,7 +93,7 @@ exports.getUserDetails = async (req, res, next) => {
   }
 };
 exports.login = async (req, res, next) => {
-  console.log("called");
+  console.log("called", req.params);
   const { mobile } = req.params;
   console.log(mobile); // Debug log to check the mobile parameter
   try {

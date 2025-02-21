@@ -46,13 +46,17 @@ exports.updateCallTiming = async (req, res, next) => {
       console.error("Call log not found");
       return res.status(404).json({ message: "Call log not found" });
     }
+    if(startLog.charge!==0){
+      console.log('Charges already applied');
+      return;
+    }
 
     const startTime = startLog.start;
     let callDuration = call ? 0 : (Date.now() - new Date(startTime)) / 1000;
 
     console.log("Call Duration (seconds):", callDuration);
 
-    let coinDuration = Math.max(0, Math.ceil(callDuration / 60 - startLog.freeMinutes));
+    let coinDuration = Math.max(0, Math.ceil(callDuration / 60));
     console.log("Coin Duration (minutes after free minutes used):", coinDuration);
 
     const tutor = await Tutors.findById(data.secUserId);
@@ -62,26 +66,13 @@ exports.updateCallTiming = async (req, res, next) => {
       return res.status(404).json({ message: "Tutor or User not found" });
     }
 
-    // **Calculate earnings for tutor**
-    const earnCoin = tutor.rate * coinDuration;
-    const earnSilverCoins = earnCoin === 0 ? (callDuration / 60) * tutor.rate : 0;
-
-    // Calculate total earnings (rounded to nearest integer)
-    const totalEarnings = Math.round(earnCoin + earnSilverCoins);
-
-    console.log("Total Earnings (coins):", totalEarnings);
-
-    // **Update Tutor Coins (only regular coins)**
-    const updatedTutor = await Tutors.findByIdAndUpdate(
-      data.secUserId,
-      {
-        $inc: { coins: totalEarnings }
-      },
-      { new: true }
-    );
+    const tutorRate = tutor.rate;
+    const totalCharge = tutorRate * coinDuration;
+    console.log("Total Charge:", totalCharge);
 
     // **Deduct from User Coins**
-    let remainingDeduction = totalEarnings;
+    let remainingDeduction = totalCharge;
+    let usedSilverCoins = 0;
     let updatedSilverCoins = [...user.silverCoins];
 
     // Sort silver coins by oldest first
@@ -90,39 +81,58 @@ exports.updateCallTiming = async (req, res, next) => {
     // Deduct from silver coins first
     for (let i = 0; i < updatedSilverCoins.length; i++) {
       if (remainingDeduction <= 0) break;
-      const silverCoinEntry = updatedSilverCoins[i];
+
+      let silverCoinEntry = updatedSilverCoins[i];
       if (silverCoinEntry.coins >= remainingDeduction) {
         silverCoinEntry.coins -= remainingDeduction;
+        usedSilverCoins += remainingDeduction;
         remainingDeduction = 0;
       } else {
+        usedSilverCoins += silverCoinEntry.coins;
         remainingDeduction -= silverCoinEntry.coins;
         silverCoinEntry.coins = 0;
       }
     }
 
-    // Remove silver coin entries with zero coins
+    // Remove zero silver coin entries
     updatedSilverCoins = updatedSilverCoins.filter(coin => coin.coins > 0);
 
-    // Deduct remaining from regular coins
-    const finalCoinDeduction = remainingDeduction;
+    // Deduct remaining from user's gold coins
+    const usedGoldCoins = remainingDeduction;
 
+    // Update user's coins
     const updatedUser = await User.findByIdAndUpdate(
       data.userId,
       {
         $set: { silverCoins: updatedSilverCoins },
-        $inc: { coins: -finalCoinDeduction }
+        $inc: { coins: -usedGoldCoins }
       },
       { new: true }
     );
 
-    console.log("User Coins After Deduction:", updatedUser?.coins || "Not Updated");
-    console.log("User Silver Coins After Deduction:", updatedUser?.silverCoins || "Not Updated");
+    // **Credit Tutor with coins deducted from the user**
+    const updatedTutor = await Tutors.findByIdAndUpdate(
+      data.secUserId,
+      {
+        $inc: { coins: usedGoldCoins, silverCoins: usedSilverCoins }
+      },
+      { new: true }
+    );
+
+    console.log("Coins Deducted from User - Gold:", usedGoldCoins);
+    console.log("Coins Deducted from User - Silver:", usedSilverCoins);
+    console.log("Coins Credited to Tutor - Gold:", usedGoldCoins);
+    console.log("Coins Credited to Tutor - Silver:", usedSilverCoins);
 
     // **Update Call Log**
+    const userEndSilverCoins = updatedUser.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0);
     const callUpdateData = {
       end: currentTime,
-      tutorEndCoin: updatedTutor.coins,
-      studentEndCoin: updatedUser?.coins || 0,
+      tutorEndGoldCoin: updatedTutor.coins,
+      studentEndGoldCoin: updatedUser?.coins || 0,
+      studentEndSilverCoin: userEndSilverCoins,
+      tutorEndSilverCoin: updatedTutor?.silverCoins,
+      charge : totalCharge,
       action: action,
     };
 
@@ -132,6 +142,7 @@ exports.updateCallTiming = async (req, res, next) => {
     }
 
     await CallLogs.findByIdAndUpdate(data._id, callUpdateData, { new: true });
+
     return;
 
   } catch (err) {
@@ -160,16 +171,16 @@ exports.callDetails = async (req, res, next) => {
       .limit(limit);
 
     if (logs.length > 0) {
-      const callDetails = logs.map((log) => ({
-        tutorName: log.secUserId ? log.secUserId.name : "Unknown Tutor",
-        start: log.start,
-        end: log.end,
-        studentUsedCoins : log.studentStartCoin-log.studentEndCoin, 
-        action : log.action,
-        connection : log.connection,
-      }));
+      // const callDetails = logs.map((log) => ({
+      //   tutorName: log.secUserId ? log.secUserId.name : "Unknown Tutor",
+      //   start: log.start,
+      //   end: log.end,
+      //   studentUsedCoins : log.studentStartCoin-log.studentEndCoin, 
+      //   action : log.action,
+      //   connection : log.connection,
+      // }));
 
-      return res.status(200).json({ callDetails });
+      return res.status(200).json({ logs });
     } else {
       return res.status(404).json({ message: "No call logs found for this user" });
     }
@@ -195,16 +206,9 @@ exports.tutorCalllogs = async (req, res, next) => {
       .skip(skip)
       .limit(limit);
     if (logs.length > 0) {
-      const callDetails = logs.map((log) => ({
-        studentName: log.userId ? log.userId.name : "Unknown Student",
-        start: log.start,
-        end: log.end,
-        studentUsedCoins : log.studentStartCoin-log.studentEndCoin, 
-        action : log.action,
-        connection : log.connection,
-      }));
+      
 
-      return res.status(200).json({ callDetails });
+      return res.status(200).json(logs);
     } else {
       return res.status(404).json({ message: "No call logs found for this user" });
     }
@@ -247,3 +251,5 @@ exports.fullLogs = async (req, res, next) => {
     next(e);
   }
 };
+
+
