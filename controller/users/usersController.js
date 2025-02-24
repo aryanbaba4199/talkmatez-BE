@@ -77,14 +77,15 @@ exports.deleteUser = async (req, res) => {
 };
 exports.getUserDetails = async (req, res, next) => {
   const { mobile } = req.params;
-
+  
   try {
-    const user = await User.findOne({ mobile: JSON.parse(mobile) });
+    const user = await User.findOne({ mobile : mobile});
+    console.log('user is found', user, mobile);
 
     if (!user) {
       res.status(404).json({ message: "User not found" });
     }
-    if (user.length !== 0) {
+    if (user) {
       res.status(200).json(user);
     }
   } catch (err) {

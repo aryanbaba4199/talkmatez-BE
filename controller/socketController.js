@@ -25,9 +25,6 @@ async function sendFcmNotification(tutorFcmToken, data) {
       userId: `${data.userId}`,
       userName: `${data.userName}`,
     },
-    android: {
-      priority: "high",
-    },
   };
   try {
     const res = await admin.messaging().send(message);
@@ -247,6 +244,7 @@ const handleCallStart = async (io, socket, data) => {
       handleEndCalls(data);
     }
     const tutorSocketId = tutorSocketMap[data.tutorId];
+
     if (tutorSocketId) {
       try {
         socket.to(tutorSocketId).emit("call_started", data);
