@@ -1,1 +1,2 @@
-updating time is working well now just its deducting correcty but creditng double of used 
+when tutor remove app from recent and keep it online, in this scenario user make a call then its receiving 
+tutor is on anothere call here send a firebase message to the tutor that he have to take action

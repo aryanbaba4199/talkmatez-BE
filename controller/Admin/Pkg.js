@@ -10,6 +10,16 @@ exports.getPackages = async (req, res, next) => {
   }
 };
 
+exports.getaPackage = async(req, res, next) => {
+  try{
+    const pkg = await PkgModel.findById(req.params.id);
+    res.status(200).json(pkg);
+  }catch(err){
+    console.error(err);
+    next(err);
+  }
+}
+
 exports.getWelPkg = async (req, res, next) => {
   try {
     const welData = await WelcomePackage.findOne();
