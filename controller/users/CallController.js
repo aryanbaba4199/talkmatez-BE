@@ -69,7 +69,7 @@ exports.updateCallTiming = async (req, res, next) => {
     const tutorRate = tutor.rate;
     const totalCharge = tutorRate * coinDuration;
     console.log("Total Charge:", totalCharge);
-
+    
     // **Deduct from User Coins**
     let remainingDeduction = totalCharge;
     let usedSilverCoins = 0;
@@ -101,6 +101,12 @@ exports.updateCallTiming = async (req, res, next) => {
     const usedGoldCoins = remainingDeduction;
 
     // Update user's coins
+   
+    const currCallLog = await CallLogs.findById(data._id);
+    if(currCallLog.charge!==0){
+      console.log('Charges already applied');
+      return;
+    }
     const updatedUser = await User.findByIdAndUpdate(
       data.userId,
       {
