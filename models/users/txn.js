@@ -32,6 +32,10 @@ const txnSchema = new mongoose.Schema({
     display : {
         type : Boolean,
         default : true
+    },
+    initialFetch : {
+        type : Boolean,
+        default : false
     }
 })
 

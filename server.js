@@ -14,6 +14,7 @@ const socketHandlers = require("./controller/socketController");
 const db = require("./Database/db");
 const payments = require('./routes/paymentRoutes')
 const utilRoutes = require('./routes/utilRoutes')
+// const xmppserver = require('./controller/xmpp');
 require("./utils/cronjob");
 
 require("dotenv").config();

@@ -1,5 +1,5 @@
 const Languages = require("../../models/helpers/languages");
-const Guide = require("../../models/helpers/guide");
+const Guide = require("../../models/helpers/sliders");
 const Country = require("../../models/helpers/country");
 
 exports.getLanguages = async (req, res, next) => {

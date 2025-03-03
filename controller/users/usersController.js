@@ -248,7 +248,11 @@ exports.updateTransaction = async(req, res, next) => {
   const  formData  = req.body;
   console.log('transaction form have',formData);
   try {
-    const txn = await Transaction.findByIdAndUpdate(formData._id, formData, {new: true});
+    let data ; 
+    if(formData.txnId!=='null' && formData.status!=='success'){
+      data = {...formData, initialFetch : true}
+    }
+    const txn = await Transaction.findByIdAndUpdate(formData._id, data, {new: true});
     if (txn) {
       res.status(200).json({message:'success'});
     } else {
@@ -259,6 +263,32 @@ exports.updateTransaction = async(req, res, next) => {
     next(err);
   }
 };
+
+exports.disableTxn = async(req, res)=>{
+  try{
+    const {id} = req.params;
+    const txn = await Transaction.findByIdAndUpdate(id, {initialFetch: false}, {new: true});
+    if (txn) {
+      res.status(200).json({message:'success'});
+    } else {
+      res.status(404).json({message: 'Error disabling transaction'});
+    }
+  }catch(e){
+    console.error(e);
+    res.status(500).json({message : err.message});
+  }
+}
+
+exports.pendingTxns = async(req, res)=>{
+  try{
+    const {id} = req.params;
+    const txns = await Transaction.find({userId: id, initialFetch: true});
+    res.status(200).json(txns);
+  }catch(err){
+    console.error(err);
+    res.status(500).json({message : err.message});
+  }
+}
 
 exports.getNotification = async(req, res) => {
   const { id } = req.params;
