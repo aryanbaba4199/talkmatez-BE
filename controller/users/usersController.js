@@ -149,6 +149,8 @@ exports.updateUser = async (req, res, next) => {
 exports.updateCoins = async (req, res, next) => {
   const formData = req.body;
 
+  console.log('form have coins', formData);
+
   try {
   
 
@@ -251,6 +253,8 @@ exports.updateTransaction = async(req, res, next) => {
     let data ; 
     if(formData.txnId!=='null' && formData.status!=='success'){
       data = {...formData, initialFetch : true}
+    }else{
+      data = formData;
     }
     const txn = await Transaction.findByIdAndUpdate(formData._id, data, {new: true});
     if (txn) {

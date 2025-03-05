@@ -40,6 +40,7 @@ exports.updateCallTiming = async (req, res, next) => {
   }
 
   try {
+    let loading;
     const currentTime = new Date().toISOString();
     const startLog = await CallLogs.findById(data._id);
     if (!startLog) {
@@ -101,7 +102,7 @@ exports.updateCallTiming = async (req, res, next) => {
     const usedGoldCoins = remainingDeduction;
 
     // Update user's coins
-   
+    loading = true;
     const currCallLog = await CallLogs.findById(data._id);
     if(currCallLog.charge!==0){
       console.log('Charges already applied');

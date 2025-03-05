@@ -99,7 +99,7 @@ const startTime = async (data) => {
     const user = await User.findById(userId);
 
     // Calculate total silver coins
-    const totalSilverCoins = user.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0);
+    const totalSilverCoins = user.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0)??0;
 
     // Calculate free minutes based on silver coins and tutor rate
     const freeMinutes = Math.floor(totalSilverCoins / tutor.rate); 
