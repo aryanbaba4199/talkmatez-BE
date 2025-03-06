@@ -56,7 +56,7 @@ const startPeriodicLog = () => {
 
 startPeriodicLog();
 
-app.use(cors());
+app.use(cors('*'));
 app.use(express.json());
 app.use("/helpers", helpers);
 app.use("/tutors", TutorsRoute);

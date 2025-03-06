@@ -3,6 +3,7 @@ const CallLogs = require("../../models/users/calllogs");
 const axios = require("axios");
 const Tutor = require("../../models/Tutors/tutors");
 const Tutors = require("../../models/Tutors/tutors");
+const { default: mongoose } = require("mongoose");
 
 
 
@@ -108,7 +109,13 @@ exports.updateCallTiming = async (req, res, next) => {
       console.log('Charges already applied');
       return;
     }
-    const updatedUser = await User.findByIdAndUpdate(
+    let updatedUser;
+    let updatedTutor;
+    try{
+      const session = await mongoose.startSession();
+      session.startTransaction();
+   
+     updatedUser = await User.findByIdAndUpdate(
       data.userId,
       {
         $set: { silverCoins: updatedSilverCoins },
@@ -118,13 +125,20 @@ exports.updateCallTiming = async (req, res, next) => {
     );
 
     // **Credit Tutor with coins deducted from the user**
-    const updatedTutor = await Tutors.findByIdAndUpdate(
+     updatedTutor = await Tutors.findByIdAndUpdate(
       data.secUserId,
       {
         $inc: { coins: usedGoldCoins, silverCoins: usedSilverCoins }
       },
       { new: true }
     );
+    await session.commitTransaction();
+      session.endSession();
+      session.endSession();
+  }catch(e){
+    await session.abortTransaction();
+    console.error('error in session ', e)
+  }
 
     console.log("Coins Deducted from User - Gold:", usedGoldCoins);
     console.log("Coins Deducted from User - Silver:", usedSilverCoins);
