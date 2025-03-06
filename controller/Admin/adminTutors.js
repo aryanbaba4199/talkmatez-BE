@@ -1,6 +1,12 @@
 
 const Tutors = require("../../models/Tutors/tutors");
 const User = require("../../models/users/users");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+
+const jwtKey = process.env.JWT_SECRET;
+
+
 
 
 exports.createTutor = async(req, res, next)=>{
@@ -74,5 +80,27 @@ exports.updateCoinsbyAdmin = async(req, res, next) => {
     }catch(e){
         console.error(e);
         next(e);
+    }
+}
+
+
+exports.login = async(req, res)=>{
+    const {loginId, password} = req.body;
+    console.log(loginId, password);
+    try{
+        const user = await Tutors.findOne({loginId});
+        console.log('user i s', user);
+        if(!user || ( user.password!==password)){
+            return res.status(401).json({message : "Invalid email or password"})
+        }
+        const token = jwt.sign(
+            {userId : user._id,},
+            jwtKey, 
+            {expiresIn : `24h`}
+        )
+        res.json({message : "success", user, token});
+    } catch(e){
+        console.error(e);
+        res.status(500).json({message : "Server Error"})
     }
 }

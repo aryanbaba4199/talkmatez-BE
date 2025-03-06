@@ -3,7 +3,7 @@ const router = express.Router();
 
 const {getLanguages} = require('../controller/Admin/helpers');
 const {createPackage, getPackages, updatePackage, deletePackages, createWelPkg, getWelPkg, updateWelPkg, getaPackage} = require('../controller/Admin/Pkg');
-const {updateTutor, updateCoinsbyAdmin, deleteTutor, socketLogs} = require('../controller/Admin/adminTutors');
+const {updateTutor, updateCoinsbyAdmin, deleteTutor, login} = require('../controller/Admin/adminTutors');
 const {createSlider, getSliders, updateSlider, deleteSlider} = require('../controller/Admin/sliders');
 
 
@@ -21,6 +21,7 @@ router.get('/packages/getapackage/:id', getaPackage);
 router.post('/create/welcomePackage', createWelPkg)
 router.get('/get/welcomePackage', getWelPkg);
 router.put('/update/welcomePackage', updateWelPkg)
+router.post('/login', login)
 
 // ----------sliders--------------------------------
 router.post('/sliders', createSlider);

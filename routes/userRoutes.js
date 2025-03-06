@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {getUserDetails, createUser,createTransaction, disableTxn, pendingTxns, updateTransaction, login, getUsers, updateUser, uNtDetails,  getuserbyid, updateCoins, getTransaction, getNotification, createNotification, updateNotification, verifyTransaction} = require('../controller/users/usersController');
+const {getUserDetails, createUser,createTransaction, disableTxn, pendingTxns, updateTransaction, login, getUsers, updateUser, uNtDetails,  getuserbyid, updateCoins, getTransaction, getNotification, createNotification, updateNotification, verifyTransaction, deleteUser} = require('../controller/users/usersController');
 const {CallTiming, updateCallTiming, callDetails, fullLogs}  = require('../controller/users/CallController');
 const { verifyPayment } = require('../controller/Admin/payment');
 
@@ -26,6 +26,7 @@ router.post('/notification', createNotification);
 router.put('/updateTransaction', updateTransaction)
 router.get('/pendingTxns/:id', pendingTxns)
 router.put('/disableTxn/:id', disableTxn) 
+router.delete('/removeUser/:id', deleteUser)
 
 
 

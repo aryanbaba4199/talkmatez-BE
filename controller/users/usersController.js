@@ -73,7 +73,17 @@ exports.createUser = async (req, res, next) => {
 
 
 exports.deleteUser = async (req, res) => {
-  const { mobile } = req.body;
+  const { id } = req.params;
+  try{
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "User deleted successfully" });
+  }catch (e) {
+    console.error(e);
+    res.status(404).json({ message: "User not found" });
+  }
 };
 exports.getUserDetails = async (req, res, next) => {
   const { mobile } = req.params;
