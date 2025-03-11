@@ -13,6 +13,9 @@ const txnSchema = new mongoose.Schema({
         type : String,
         required : true
     },
+    orderId : {
+        type : String,
+    },
     status : {
         type : String,
         required : true
@@ -21,6 +24,9 @@ const txnSchema = new mongoose.Schema({
         required : true,
         type : Number,
     },
+    signature : {
+        type : String,
+    }, 
     time : {
         type : Date,
         default : Date.now(),
@@ -36,7 +42,14 @@ const txnSchema = new mongoose.Schema({
     initialFetch : {
         type : Boolean,
         default : false
-    }
+    },
+    token : {
+        type : String,
+    }, 
+    retry : {
+        type : Number, 
+        default : 0
+    },
 })
 
 const TxnModel = mongoose.model('Txn', txnSchema)

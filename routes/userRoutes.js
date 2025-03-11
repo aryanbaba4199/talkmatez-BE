@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-
+const {createOrder, VerifyRzr} = require('../controller/users/razorpay')
 const {getUserDetails, createUser,createTransaction, disableTxn, pendingTxns, updateTransaction, login, getUsers, updateUser, uNtDetails,  getuserbyid, updateCoins, getTransaction, getNotification, createNotification, updateNotification, verifyTransaction, deleteUser} = require('../controller/users/usersController');
 const {CallTiming, updateCallTiming, callDetails, fullLogs}  = require('../controller/users/CallController');
 const { verifyPayment } = require('../controller/Admin/payment');
@@ -27,6 +27,8 @@ router.put('/updateTransaction', updateTransaction)
 router.get('/pendingTxns/:id', pendingTxns)
 router.put('/disableTxn/:id', disableTxn) 
 router.delete('/removeUser/:id', deleteUser)
+router.post('/payment', createOrder);
+router.get('/payment/:id', VerifyRzr)
 
 
 

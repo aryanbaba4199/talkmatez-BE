@@ -13,10 +13,9 @@
   "dependencies": {
     "@xmpp/client": "^0.13.4",
     "agora-access-token": "^2.0.4",
-    "axios": "^1.7.9",
+    "axios": "^1.8.2",
     "backend": "file:",
     "body-parser": "^1.20.3",
-    "buffer": "^6.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
@@ -29,6 +28,7 @@
     "node-xmpp-core": "^5.0.9",
     "node-xmpp-server": "^2.2.7",
     "nodemon": "^3.1.9",
+    "razorpay": "^2.9.6",
     "socket.io": "^4.8.0",
     "websocket": "^1.0.35",
     "ws": "^8.18.0"
