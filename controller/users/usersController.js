@@ -255,6 +255,9 @@ exports.updateTransaction = async (req, res, next) => {
   const formData = req.body;
   console.log("transaction form have", formData);
   try {
+    if(formData.signature==='canceled'){
+      return res.status(207).json({message : 'Payment was not done'})
+    }
     let data;
     if (formData.txnId !== "null" && formData.status !== "success") {
       data = { ...formData, initialFetch: true };
