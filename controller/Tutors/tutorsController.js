@@ -128,8 +128,8 @@ exports.updateRating = async (req, res) => {
 
 
 exports.login = async (req, res, next) => {
-  console.log('hi there');
-  const {formData} = req.body;
+
+  const formData = req.body;
   console.log(formData);
   try {
     const tutor = await Tutors.findOne({ loginId : formData.loginId });
@@ -160,6 +160,7 @@ exports.login = async (req, res, next) => {
 
 exports.updateToken = async (req, res, next) => {
   const { token, tutorId } = req.body;
+  console.log("tutor Id is ", tutorId, token);
   if (!tutorId) {
     return res.status(400).json({ message: "Token and tutorId are required" });
   }
@@ -184,9 +185,7 @@ exports.updateToken = async (req, res, next) => {
 exports.getTutor = async (req, res) => {
   try {
 
-    const { id } = req.params;
-
-    const tutor = await Tutors.findById(id);
+    const tutor = await Tutors.findById(req.user._id);
     if (tutor) {
       res.status(200).json(tutor);
     } else {
@@ -199,9 +198,11 @@ exports.getTutor = async (req, res) => {
 };
 
 exports.dashboardData = async(req, res, next) => {
-  const {id} = req.params;
+ 
   try{
-    const call = await CallLogs.find({secUserId : id});
+    const userId = (req.user._id).toString();
+    const call = await CallLogs.find({secUserId : userId});
+  
     const data = {
       totalCall: call.length,
       acceptedCall: call.filter(c => c.connection===true && parseInt(c.action) !== 6).length,

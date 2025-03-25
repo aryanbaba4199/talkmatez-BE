@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 const callSchema = new mongoose.Schema({
+    initiated : {
+        type : String,
+        default : Date.now()
+    },
     start : {
         type: String,
         required : true,
@@ -12,6 +16,20 @@ const callSchema = new mongoose.Schema({
     userId : {
         type: String,
         required: true
+    },
+    userCustomId : {
+        type: String,
+        // required: true
+        immutable : true,
+    },
+    tutorCustomId : {
+        type: String,
+        immutable: true
+        // required: true
+    },
+    umobile : {
+        type: String,
+        immutable: true
     },
     secUserId : {
         type: String,

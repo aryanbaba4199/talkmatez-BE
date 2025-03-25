@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 const {getLanguages} = require('../controller/Admin/helpers');
-const {createPackage, getPackages, updatePackage, deletePackages, createWelPkg, getWelPkg, updateWelPkg, getaPackage} = require('../controller/Admin/Pkg');
+const {createPackage, getPackages, updatePackage, deletePackages, createWelPkg, getWelPkg, updateWelPkg, getaPackage,getTransctionById, getTransaction} = require('../controller/Admin/Pkg');
 const {updateTutor, updateCoinsbyAdmin, deleteTutor, login} = require('../controller/Admin/adminTutors');
 const {createSlider, getSliders, updateSlider, deleteSlider} = require('../controller/Admin/sliders');
+
 
 
 router.get('/getLanguages', getLanguages);
@@ -28,6 +29,10 @@ router.post('/sliders', createSlider);
 router.get('/sliders', getSliders);
 router.put('/sliders', updateSlider);
 router.delete('/sliders/:id', deleteSlider);
+
+//-------------Transaction-----------------------
+router.get('/transactions/:page', getTransaction) 
+router.get('/transactionById/:id', getTransctionById)
 
 
 module.exports = router;

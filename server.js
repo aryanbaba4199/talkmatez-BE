@@ -14,6 +14,7 @@ const socketHandlers = require("./controller/socketController");
 const db = require("./Database/db");
 const payments = require('./routes/paymentRoutes')
 const utilRoutes = require('./routes/utilRoutes')
+const verifyToken = require('./utils/verification');
 // const xmppserver = require('./controller/xmpp');
 require("./utils/cronjob");
 
@@ -62,9 +63,9 @@ app.use("/helpers", helpers);
 app.use("/tutors", TutorsRoute);
 app.use("/users", userRoutes);
 app.use("/admin/helpers", GetLanguages);
-app.use("/admin", iamadmin);
+app.use("/admin", verifyToken, iamadmin);
 app.use("/generateToken", GenerateToken);
-app.use("/payments", payments)
+app.use("/payments", verifyToken, payments)
 app.use("/cronjobs", utilRoutes);
 
 

@@ -11,15 +11,16 @@ require("dotenv").config();
 const jwtKey = process.env.JWT_SECRET;
 
 exports.getuserbyid = async (req, res, next) => {
-  const { id } = req.params;
+ 
   try {
-    const user = await User.findById(id);
+    const user = req.user;
     res.status(200).json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.createUser = async (req, res, next) => {
   const { formData } = req.body;
@@ -54,6 +55,11 @@ exports.createUser = async (req, res, next) => {
 
     formData.silverCoinExpiry = welcomePackage.expiry;
 
+    // Generate and assign a unique custom ID
+    const customId = await generateCustomId();
+    console.log("Generated UID:", customId);
+    formData.uid = customId;
+
     const user = new User(formData);
     await user.save();
 
@@ -73,6 +79,46 @@ exports.createUser = async (req, res, next) => {
   }
 };
 
+const generateCustomId = async () => {
+  const lastUser = await User.findOne().sort({ uid: -1 }).lean();
+
+  if (!lastUser || !lastUser.uid) {
+    return "AAA0001"; // First user
+  }
+
+  let lastUid = lastUser.uid;
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  let letterPart = lastUid.slice(0, 3);
+  let numberPart = parseInt(lastUid.slice(3), 10);
+
+  if (numberPart < 9999) {
+    numberPart++;
+  } else {
+    numberPart = 1;
+
+    // Increment letter sequence
+    let lastIndex =
+      letters.indexOf(letterPart[2]) +
+      letters.indexOf(letterPart[1]) * 26 +
+      letters.indexOf(letterPart[0]) * 26 * 26;
+
+    lastIndex++;
+
+    if (lastIndex >= 26 * 26 * 26) {
+      throw new Error("UID limit reached!"); // Handle max limit case
+    }
+
+    letterPart =
+      letters[Math.floor(lastIndex / (26 * 26))] +
+      letters[Math.floor((lastIndex % (26 * 26)) / 26)] +
+      letters[lastIndex % 26];
+  }
+
+  return letterPart + String(numberPart).padStart(4, "0");
+};
+
+
 exports.deleteUser = async (req, res) => {
   const { id } = req.params;
   try {
@@ -87,11 +133,10 @@ exports.deleteUser = async (req, res) => {
   }
 };
 exports.getUserDetails = async (req, res, next) => {
-  const { mobile } = req.params;
-
+  
   try {
-    const user = await User.findOne({ mobile: mobile });
-    console.log("user is found", user, mobile);
+    const user = req.user;
+    
 
     if (!user) {
       res.status(404).json({ message: "User not found" });
@@ -116,13 +161,13 @@ exports.login = async (req, res, next) => {
     } else {
       const token = jwt.sign(
         {
-          userId: user._id,
+          id: user._id,
           mobile: user.mobile,
         },
         jwtKey,
         { expiresIn: `${24 * 30}h` }
       );
-      res.status(200).json({ token, user });
+      res.status(200).json({token, user});
     }
   } catch (err) {
     console.error(err);
@@ -209,10 +254,9 @@ exports.uNtDetails = async (req, res, next) => {
 };
 
 exports.getTransaction = async (req, res, next) => {
-  const { id } = req.params;
-  console.log(id);
+
   try {
-    const transactions = await Transaction.find({ userId: id })
+    const transactions = await Transaction.find({ userId: req.user._id })
       .sort({ time: -1 })
       .limit(100);
     res.status(200).json(transactions);
@@ -223,7 +267,7 @@ exports.getTransaction = async (req, res, next) => {
 };
 
 exports.verifyTransaction = async (req, res, next) => {
-  const { id } = req.params;
+
 
   try {
     const txn = await Transaction.findOne({ txnId: id });

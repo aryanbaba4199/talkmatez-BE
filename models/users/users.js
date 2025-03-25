@@ -11,6 +11,11 @@ const authSchema = new mongoose.Schema({
         unique: true, 
         index: true 
     },
+    uid : {
+        type: String,
+        required: true,
+        unique: true, 
+    }, 
     primaryLanguage: {
         type: String,
         required: true
@@ -28,6 +33,12 @@ const authSchema = new mongoose.Schema({
     coins: {
         type: Number,
         default: 0
+    },
+    uid : {
+        type: String,
+        required: true,
+        unique: true, 
+       
     },
     silverCoins: [{
         type: {

@@ -1,5 +1,6 @@
 const PkgModel = require("../../models/helpers/packages");
 const WelcomePackage = require("../../models/helpers/welcome");
+const Transaction = require("../../models/users/txn")
 
 exports.getPackages = async (req, res, next) => {
   try {
@@ -97,3 +98,44 @@ exports.deletePackages = async (req, res, next) => {
     next(err);
   }
 };
+
+
+exports.getTransaction = async (req, res, next) => {
+  console.log('called');
+
+  try {
+    const page = parseInt(req.params.page) || 1;
+    const skip = (page - 1) * 50; 
+    const transactions = await Transaction.find({})
+      .sort({ time: -1 })
+      .skip(skip)
+      .limit(50);
+
+  
+    const totalTransactions = await Transaction.countDocuments();
+    res.status(200).json({
+      transactions,
+      currentPage: page,
+      totalPages: Math.ceil(totalTransactions / 50),
+      totalTransactions
+    });
+  } catch (e) {
+    console.error('Error in getting transactions', e);
+    next(e);
+  }
+};
+
+
+exports.getTransctionById = async(req, res, next)=>{
+  const {id} = req.params;
+  try{
+    const transaction = await Transaction.findOne({txnId : id});
+    if(!transaction){
+      return res.status(404).json({message: "Transaction not found"});
+    }
+    return res.status(200).json(transaction);
+  }catch(e){
+    console.error('Error in getting transaction by id', e);
+    next(e);
+  }
+}

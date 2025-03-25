@@ -181,7 +181,7 @@ exports.callDetails = async (req, res, next) => {
   const skip = (page - 1) * limit;
 
   try {
-    const logs = await CallLogs.find({ userId: id })
+    const logs = await CallLogs.find({ userId: req.user._id })
       .populate({
         path: "secUserId",
         model: Tutor,
@@ -200,7 +200,7 @@ exports.callDetails = async (req, res, next) => {
       //   action : log.action,
       //   connection : log.connection,
       // }));
-
+      console.log(this.callDetails);
       return res.status(200).json({ logs });
     } else {
       return res.status(404).json({ message: "No call logs found for this user" });
@@ -212,12 +212,12 @@ exports.callDetails = async (req, res, next) => {
 };
 
 exports.tutorCalllogs = async (req, res, next) => {
-  const { id, page = 1 } = req.params;
+  const page = req.params.page || 1;
   const limit = 100;
   const skip = (page - 1) * limit;
 
   try {
-    const logs = await CallLogs.find({ secUserId: id })
+    const logs = await CallLogs.find({ secUserId: req.user._id })
       .populate({
         path: "userId",
         model: User,
@@ -244,7 +244,7 @@ exports.tutorCalllogs = async (req, res, next) => {
 exports.fullLogs = async (req, res, next) => {
   try {
     const page = parseInt(req.params.page) || 1;
-    const limit = 20;
+    const limit = 50;
     const skip = (page - 1) * limit;
 
     // Fetch call logs with pagination
