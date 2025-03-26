@@ -86,10 +86,10 @@ exports.updateCoinsbyAdmin = async(req, res, next) => {
 
 exports.login = async(req, res)=>{
     const {loginId, password} = req.body;
-    console.log(loginId, password);
+   
     try{
         const user = await Tutors.findOne({loginId});
-        console.log('user i s', user);
+     
         if(!user || ( user.password!==password)){
             return res.status(401).json({message : "Invalid email or password"})
         }

@@ -63,7 +63,7 @@ app.use("/helpers", helpers);
 app.use("/tutors", TutorsRoute);
 app.use("/users", userRoutes);
 app.use("/admin/helpers", GetLanguages);
-app.use("/admin", verifyToken, iamadmin);
+app.use("/admin", iamadmin);
 app.use("/generateToken", GenerateToken);
 app.use("/payments", verifyToken, payments)
 app.use("/cronjobs", utilRoutes);
