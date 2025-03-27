@@ -9,7 +9,7 @@ const CallIds = {};
 const activeCalls = {};
 const callTimeouts = {};
 const waitingcall = {};
-const processingCalls = new Set(); // Global lock for call processing
+const processingCalls = new Set();
 
 async function getTutorFcmToken(tutorId) {
   const tutor = await Tutors.findOne({ _id: tutorId });
@@ -113,6 +113,7 @@ const startTime = async (data) => {
       end: 0,
       action: data.action,
       charge: 0,
+      connection: false, // Initially not connected
     };
     console.log('start time is ', formData);
 
@@ -167,7 +168,7 @@ const updateTime = async (userId, action, isFinal = false) => {
     const updateValue = { data, action, call: isFinal };
     await updateCallTiming({ body: updateValue });
 
-    if (action !== 2) {
+    if (action !== 2 && isFinal) {
       delete CallIds[userId];
     }
   } catch (error) {
@@ -308,7 +309,7 @@ const handleCallDeclined = async (io, socket, data) => {
   console.log('Call declined by tutor');
   try {
     handleRemoveWaiting(data);
-    updateTime(data.userId, 1, true);
+    updateTime(data.userId, 1, true); // Final but no charge
     handleEndCalls(data);
     updateTutor(data.tutorId, "available");
     const userSocketId = userSocketMap[data.userId];
@@ -323,7 +324,7 @@ const handleCallEnd = async (io, socket, data) => {
   console.log('Student ended the call before pick');
   try {
     handleEndCalls(data);
-    updateTime(data.userId, 3, true);
+    updateTime(data.userId, 3, true); // Final but no charge
     socket.broadcast.emit("available", data.tutorId);
     io.to(tutorSocketMap[data.tutorId]).emit("call_ended");
     updateTutor(data.tutorId, "available");
@@ -338,7 +339,7 @@ const handleTutorEndCall = (io, socket, data) => {
   console.log('Tutor ended the call');
   try {
     handleEndCalls(data);
-    updateTime(data.userId, 4, true);
+    updateTime(data.userId, 4, true); // Final with charge if connected
     const userSocketId = userSocketMap[data.userId];
     socket.broadcast.emit("available", data.tutorId);
     updateTutor(data.tutorId, "available");
@@ -351,7 +352,7 @@ const handleTutorEndCall = (io, socket, data) => {
 const handleCallAccepted = (io, socket, data) => {
   try {
     handleRemoveWaiting(data);
-    updateTime(data.userId, 2, false); // Not final, just acceptance
+    updateTime(data.userId, 2, false); // Not final, sets connection = true
     const userSocketId = userSocketMap[data?.userId];
     updateTutorRank(data.tutorId);
     if (userSocketId) io.to(userSocketId).emit("call_accepted");
@@ -366,7 +367,7 @@ const handleCallNotAccepted = async (io, socket, data) => {
     io && io.to(userSocketMap[data.userId]).emit("call_not_accepted");
     socket.broadcast.emit("available", data.tutorId);
     updateTutor(data.tutorId, "available");
-    updateTime(data.userId, 0, true);
+    updateTime(data.userId, 0, true); // Final but no charge
   } catch (error) {
     console.error("Error in Call Not Accepting", error);
   }
@@ -383,7 +384,7 @@ const handleDisconnection = async (io, socket, reason) => {
           if (studentSocketId) {
             const callLog = CallIds[activeCall.userId];
             if (callLog && callLog.charge === 0) {
-              await updateTime(activeCall.userId, 6, true);
+              await updateTime(activeCall.userId, 6, true); // Final with charge if connected
               io.to(studentSocketId).emit("call_ended_due_to_disconnect", {
                 message: "The tutor has disconnected. The call has ended.",
               });
@@ -400,7 +401,7 @@ const handleDisconnection = async (io, socket, reason) => {
         if (tutorId) {
           const callLog = CallIds[userId];
           if (callLog && callLog.charge === 0) {
-            await updateTime(userId, 5, true);
+            await updateTime(userId, 5, true); // Final with charge if connected
             const tutorSocketId = activeCalls[tutorId].tutorSocketId;
             if (tutorSocketId) {
               io.to(tutorSocketId).emit("call_ended_due_to_disconnect", {

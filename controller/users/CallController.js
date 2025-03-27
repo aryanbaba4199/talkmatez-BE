@@ -13,7 +13,7 @@ exports.CallTiming = async (req) => {
 
   try {
     const currentTime = new Date().toISOString();
-    const call = new CallLogs({ ...formData, start: currentTime, charge: 0 });
+    const call = new CallLogs({ ...formData, start: currentTime, charge: 0, connection: false });
     await call.save();
     return call;
   } catch (err) {
@@ -71,8 +71,11 @@ exports.updateCallTiming = async ({ body }) => {
       const totalCharge = tutorRate * coinDuration;
       console.log("Total Charge:", totalCharge);
 
-      let updatedUser, updatedTutor;
-      if (totalCharge > 0 && call) { // Only charge on final update
+      let updatedUser = user;
+      let updatedTutor = tutor;
+
+      // Only charge if the call was connected and this is the final update
+      if (totalCharge > 0 && call && startLog.connection === true) {
         let remainingDeduction = totalCharge;
         let usedSilverCoins = 0;
         let updatedSilverCoins = [...user.silverCoins];
@@ -117,8 +120,7 @@ exports.updateCallTiming = async ({ body }) => {
         console.log("Coins Credited to Tutor - Gold:", usedGoldCoins);
         console.log("Coins Credited to Tutor - Silver:", usedSilverCoins);
       } else {
-        updatedUser = user;
-        updatedTutor = tutor;
+        console.log(`No charge applied: connection=${startLog.connection}, isFinal=${call}`);
       }
 
       const userEndSilverCoins = updatedUser.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0);
@@ -128,14 +130,14 @@ exports.updateCallTiming = async ({ body }) => {
         studentEndGoldCoin: updatedUser.coins || 0,
         studentEndSilverCoin: userEndSilverCoins,
         tutorEndSilverCoin: updatedTutor.silverCoins,
-        charge: call ? totalCharge : 0, // Only set charge on final update
+        charge: (call && startLog.connection) ? totalCharge : 0, // Charge only if connected
         action: action,
       };
 
       if (action === 2) {
         callUpdateData.start = currentTime;
-        callUpdateData.connection = true;
-        callUpdateData.charge = 0; // No charge on acceptance
+        callUpdateData.connection = true; // Mark as connected on acceptance
+        callUpdateData.charge = 0; // No charge yet
       }
 
       await CallLogs.findByIdAndUpdate(data._id, callUpdateData, { new: true, session });
@@ -148,7 +150,7 @@ exports.updateCallTiming = async ({ body }) => {
       if (err.codeName === 'WriteConflict' && retries < MAX_RETRIES - 1) {
         console.log(`Write conflict detected, retrying (${retries + 1}/${MAX_RETRIES})`);
         retries++;
-        await new Promise(resolve => setTimeout(resolve, 100 * (retries + 1))); // Adjusted backoff
+        await new Promise(resolve => setTimeout(resolve, 100 * (retries + 1)));
         continue;
       }
       console.error("Error updating call timing:", err);
