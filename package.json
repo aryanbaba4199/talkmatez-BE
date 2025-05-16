@@ -13,7 +13,7 @@
   "dependencies": {
     "@xmpp/client": "^0.13.4",
     "agora-access-token": "^2.0.4",
-    "axios": "^1.8.2",
+    "axios": "^1.9.0",
     "backend": "file:",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",

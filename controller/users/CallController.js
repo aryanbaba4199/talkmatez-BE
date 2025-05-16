@@ -2,6 +2,7 @@ const User = require("../../models/users/users");
 const CallLogs = require("../../models/users/calllogs");
 const Tutors = require("../../models/Tutors/tutors");
 const mongoose = require("mongoose");
+const {sendXmppMessage} = require('../xmpp')
 
 exports.CallTiming = async (req) => {
   const formData = req.body;
@@ -246,3 +247,37 @@ exports.fullLogs = async (req, res, next) => {
     next(e);
   }
 };
+
+
+
+// --------web app controllerd -----------
+exports.createCall = async(req, res, next)=>{
+  const {agoraToken, channel, tid} = req.body;
+  try{
+    const message = {
+      eventType : 1,
+      data : {agoraToken, channel, tid}
+    }
+    sendXmppMessage(`${tid}@localhost`, message)
+    return res.status(200).json({message : 'informed to tutor'})
+  }catch(e){
+    console.error('error in creating call', e)
+    next(e)
+  }
+}
+
+exports.endCall = async(req, res, next)=>{
+ 
+  const {tid, eventType} = req.body;
+  try{
+    const message = {
+      eventType 
+    }
+    
+    await sendXmppMessage(`${tid}@localhost`, message)
+    return res.status(200).json({message : 'informed to student'})
+  }catch(e){
+    console.error('Error in ending call', e)
+    next(e)
+  }
+}

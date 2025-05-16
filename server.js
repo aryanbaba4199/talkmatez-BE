@@ -15,6 +15,7 @@ const db = require("./Database/db");
 const payments = require('./routes/paymentRoutes')
 const utilRoutes = require('./routes/utilRoutes')
 const verifyToken = require('./utils/verification');
+const callroute = require('./routes/callroutes')
 // const xmppserver = require('./controller/xmpp');
 require("./utils/cronjob");
 
@@ -67,6 +68,7 @@ app.use("/admin", iamadmin);
 app.use("/generateToken", GenerateToken);
 app.use("/payments", verifyToken, payments)
 app.use("/cronjobs", utilRoutes);
+app.use("/calls", callroute)
 
 
 

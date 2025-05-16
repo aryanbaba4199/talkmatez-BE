@@ -6,13 +6,16 @@ const verifyToken = async(req, res, next)=>{
     try{
         const token = req.headers.authorization.split(' ')[1];
         
+        
         if(!token){
             return res.status(403).json({message: 'Token not provided'});
         }
+        console.log('token is',process.env.JWT_SECRET)
 
         const decoded = jwt.decode(token, process.env.JWT_SECRET);
+        console.log(decoded)
         let user;
-        user = await User.findById(decoded.id);
+        user = await User.findById(decoded.id).select('name mobile _id fcmToken coins silverCoins');
         if(!user){
             user = await Tutors.findById(decoded.userId);
         };
