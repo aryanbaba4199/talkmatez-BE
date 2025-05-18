@@ -3,7 +3,7 @@ const CallLogs = require("../../models/users/calllogs");
 const Call = require("../../models/users/calllogs");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
-const { registeronxmpp, getxmppusers, sendXmppMessage } = require("../xmpp");
+const { registeronxmpp, getxmppusers, sendXmppMessage, broadcastMessage } = require("../xmpp");
 require("dotenv").config();
 
 const jwtKey = process.env.JWT_SECRET;
@@ -160,51 +160,59 @@ exports.updateRating = async (req, res) => {
 };
 
 exports.login = async (req, res, next) => {
-  const formData = req.body;
-  console.log(formData);
+  const { loginId, password } = req.body;
+
   try {
-    const tutor = await Tutors.findOne({ loginId: formData.loginId });
+    const tutor = await Tutors.findOne({ loginId });
 
-    if (tutor && formData.password === tutor.password) {
-      const tutorData = {
-        ...tutor.toObject(),
-        client: undefined,
-      };
-      const xres = await getxmppusers();
-      if (xres.success) {
-        const xusers = xres.data;
-        const token = jwt.sign(
-          {
-            userId: tutorData._id,
-          },
-          jwtKey,
-          { expiresIn: `${24 * 30}h` }
-        );
-       
-        if (!xusers.includes(tutor._id.toString())) {
-          const isreg = await registeronxmpp("register", {
-            user: tutor._id,
-            host: "localhost",
-            password: tutor.email,
-          });
-          if (isreg.registered) {
-            console.log("registered on xmpp");
-
-            
-            res.status(200).json({ token, tutorData });
-          }
-        } else {
-          res.status(200).json({ token, tutorData });
-        }
-      }
-    } else {
-      res.status(400).json({ message: "Invalid credentials" });
+    if (!tutor || password !== tutor.password) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
-  } catch (e) {
-    console.error(e);
-    next(e);
+
+    const tutorData = {
+      ...tutor.toObject(),
+      client: undefined,
+    };
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: tutor._id.toString() },
+      jwtKey,
+      { expiresIn: `${24 * 30}h` }
+    );
+
+    // Check XMPP registration
+    const xres = await getxmppusers();
+    if (!xres.success) {
+      return res.status(500).json({ message: "Failed to fetch XMPP users" });
+    }
+
+    const xmppUsers = xres.data;
+    const userIdStr = tutor._id.toString();
+
+    if (!xmppUsers.includes(userIdStr)) {
+      const isreg = await registeronxmpp("register", {
+        user: userIdStr,
+        password: tutor.email, // ⚠️ You might want to use a secure random password instead
+      });
+
+      if (!isreg.registered) {
+        return res.status(500).json({ message: "Failed to register on XMPP" });
+      }
+
+      console.log("✅ Registered on XMPP:", userIdStr);
+    } else {
+      console.log("🟢 Already registered on XMPP:", userIdStr);
+    }
+
+    return res.status(200).json({ token, tutorData });
+
+  } catch (err) {
+    console.error("❌ Login error:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
+
 
 exports.updateToken = async (req, res, next) => {
   const { token, tutorId } = req.body;
@@ -347,13 +355,26 @@ exports.updateFirstTime = async (req, res, next) => {
 
 exports.xendCall = async(req, res, next)=>{
   try{
-    const {userId, eventType} = req.body;
+    const {userId, eventType, tutorId} = req.body;
     const message = {
       eventType : eventType
     }
     await sendXmppMessage(userId, message)
+    await updateTutorStatus(tutorId, 'available')
+    await broadcastMessage(10, tutorId, 'available')
     return res.status(200).json({message : 'Informed student about call end'})
   }catch(e){
     console.error('Error in xendCall', e)
   }
 }
+
+const updateTutorStatus = async (tid, status) => {
+  console.log('Updating tutor', tid, 'to', status);
+  try {
+    await Tutors.findByIdAndUpdate(tid, { status }, { new: true });
+    return true;
+  } catch (e) {
+    console.error('Tutor update error:', e.message);
+    return false;
+  }
+};

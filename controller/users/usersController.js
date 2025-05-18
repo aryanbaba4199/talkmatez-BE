@@ -198,18 +198,19 @@ exports.login = async (req, res, next) => {
           jwtKey,
           { expiresIn: `${24 * 30}h` }
         );
-        if (!xusers.includes(user._id)) {
+        
+        if (!xusers.includes(user._id.toString())) {
           const xreg = await registeronxmpp("register", {
             user: user._id,
-            host: "localhost",
+            host: "104.197.117.162",
             password: user.mobile,
           });
           if (xreg.registered) {
             console.log("registered on xmpp");
-            res.status(200).json({ token, user });
+            res.status(200).json({ token, user});
           }
         } else {
-          res.status(200).json({ token, tutorData });
+          res.status(200).json({ token, user });
         }
       } else {
         res.status(400).json({ message: "Invalid credentials" });
