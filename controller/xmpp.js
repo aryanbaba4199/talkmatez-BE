@@ -1,13 +1,15 @@
 const axios = require("axios");
 const { client, xml } = require("@xmpp/client");
 const https = require("https");
+const Tutors = require("../models/Tutors/tutors");
+const admin = require("firebase-admin");
 require("dotenv").config();
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const xmppIp = process.env.XMPPIP;
 const ADMIN_JID = `admin@${process.env.XMPPIP}`;
 const ADMIN_PASS = process.env.XMPPPASS;
-const API_BASE = `http://${process.env.XMPPIP}:5443/api`;
+const API_BASE = `https://${process.env.XMPPIP}:5443/api`;
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const HINTS_NS = "urn:xmpp:hints";
 
@@ -16,9 +18,9 @@ const XMPP_CONFIG = {
   domain: process.env.XMPPIP,
   username: process.env.XMPPUN,
   password: process.env.XMPPPASS,
-  tls: {
-    rejectUnauthorized: false, // disable cert check for dev
-  },
+  // tls: {
+  //   rejectUnauthorized: false, // disable cert check for dev
+  // },
 };
 
 // const XMPP_URI = `http://localhost:5280/api`;
@@ -57,6 +59,17 @@ const getXmppClient = async () => {
         console.log("✅ Persistent XMPP connected as", address.toString());
         isConnected = true;
       });
+      xmppClient.on("stanza", (stanza) => {
+      if (stanza.is("message")) {
+        const received = stanza.getChild("received", "urn:xmpp:receipts");
+        if (received) {
+          const msgId = received.attrs.id;
+          const from = stanza.attrs.from;
+          console.log(`📥 Delivery receipt from ${from} for message id ${msgId}`);
+          // Here you can update your DB or application state to mark message delivered
+        }
+      }
+    });
 
       await xmppClient.start();
       return xmppClient;
@@ -143,32 +156,35 @@ exports.getxmppusers = async () => {
 exports.sendXmppMessage = async (toBare, payload) => {
   if (!toBare || !payload)
     return { success: false, error: "Missing to / payload" };
+    const fcmData = {}
+    notifyViaFcm(toBare, payload.eventType, payload.data, )
+    console.log('id is ', toBare, 'data is', payload)
+  // try {
+  //   const xmpp = await getXmppClient();
+  //   const body =
+  //     typeof payload === "object" ? JSON.stringify(payload) : String(payload);
+  //   const toJid = toBare.includes("@")
+  //     ? toBare
+  //     : `${toBare}@${xmppIp}`;
 
-  try {
-    const xmpp = await getXmppClient();
-    const body =
-      typeof payload === "object" ? JSON.stringify(payload) : String(payload);
-    const toJid = toBare.includes("@")
-      ? toBare
-      : `${toBare}@${xmppIp}`;
+  //   const stanza = xml(
+  //     "message",
+  //     { to: toJid, type: "chat", id: Date.now().toString() },
+  //     // 👇 prevent Ejabberd from storing / replaying this message
+  //     xml("no-store", { xmlns: HINTS_NS }),
+  //     xml("no-permanent", { xmlns: HINTS_NS }),
+  //     xml("no-copy", { xmlns: HINTS_NS }),
+  //     xml("body", {}, body),
+  //     xml("request", { xmlns: "urn:xmpp:receipts" }) 
+  //   );
 
-    const stanza = xml(
-      "message",
-      { to: toJid, type: "chat", id: Date.now().toString() },
-      // 👇 prevent Ejabberd from storing / replaying this message
-      xml("no-store", { xmlns: HINTS_NS }),
-      xml("no-permanent", { xmlns: HINTS_NS }),
-      xml("no-copy", { xmlns: HINTS_NS }),
-      xml("body", {}, body)
-    );
-
-    await xmpp.send(stanza);
-    console.log("📤 Sent 1‑to‑1 to", toJid);
-    return { success: true };
-  } catch (e) {
-    console.error("❌ sendXmppMessage:", e.message);
-    return { success: false, error: e.message };
-  }
+  //   await xmpp.send(stanza);
+  //   console.log("📤 Sent 1‑to‑1 to", toJid);
+  //   return { success: true };
+  // } catch (e) {
+  //   console.error("❌ sendXmppMessage:", e.message);
+  //   return { success: false, error: e.message };
+  // }
 };
 
 // utils/xmpp.js  (or wherever you keep it)
@@ -251,3 +267,43 @@ process.on("SIGINT", async () => {
   }
   process.exit();
 });
+
+
+const notifyViaFcm = async (tutorId, eventType, data) => {
+  try {
+    // Fetch tutor FCM token from DB (make sure you await this!)
+    const tutor = await Tutors.findById(tutorId).select('fcmToken').lean();
+  
+    if (!tutor || !tutor.fcmToken) {
+      console.warn(`No FCM token found for tutorId: ${tutorId}`);
+      return false;
+    }
+
+    console.log("Sending call notification via FCM to token:", tutor.fcmToken);
+
+    const message = {
+      token: tutor.fcmToken,
+      data: {
+        eventType : String(eventType),
+        agoraToken: String(data.agoraToken),
+        tid: String(data.tid),
+        channel: String(data.channel),
+        userName: "Unknown",
+      },
+      
+    };
+
+    try {
+      const res = await admin.messaging().send(message);
+      console.log('FCM message sent:', res, "token", tutor.fcmToken);
+      return true;
+    } catch (error) {
+      console.error("Error sending FCM notification:", error);
+      return false;
+    }
+
+  } catch (error) {
+    console.error("Error in handleFcmNotifier:", error);
+    return false;
+  }
+};
