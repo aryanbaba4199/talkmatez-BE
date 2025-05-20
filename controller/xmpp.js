@@ -12,6 +12,7 @@ const ADMIN_PASS = process.env.XMPPPASS;
 const API_BASE = `https://${process.env.XMPPIP}:5443/api`;
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 const HINTS_NS = "urn:xmpp:hints";
+const pendingReceipts = new Map();
 
 const XMPP_CONFIG = {
   service: `xmpp://${process.env.XMPPIP}:5222`,
@@ -153,38 +154,54 @@ exports.getxmppusers = async () => {
   }
 };
 
-exports.sendXmppMessage = async (toBare, payload) => {
-  if (!toBare || !payload)
-    return { success: false, error: "Missing to / payload" };
-    const fcmData = {}
-    notifyViaFcm(toBare, payload.eventType, payload.data, )
-    console.log('id is ', toBare, 'data is', payload)
-  // try {
-  //   const xmpp = await getXmppClient();
-  //   const body =
-  //     typeof payload === "object" ? JSON.stringify(payload) : String(payload);
-  //   const toJid = toBare.includes("@")
-  //     ? toBare
-  //     : `${toBare}@${xmppIp}`;
+exports.sendXmppMessage = async (tutorId, payload) => {
+  if (!tutorId || !payload)
+    return { success: false, error: 'Missing tutorId / payload' };
 
-  //   const stanza = xml(
-  //     "message",
-  //     { to: toJid, type: "chat", id: Date.now().toString() },
-  //     // 👇 prevent Ejabberd from storing / replaying this message
-  //     xml("no-store", { xmlns: HINTS_NS }),
-  //     xml("no-permanent", { xmlns: HINTS_NS }),
-  //     xml("no-copy", { xmlns: HINTS_NS }),
-  //     xml("body", {}, body),
-  //     xml("request", { xmlns: "urn:xmpp:receipts" }) 
-  //   );
+  try {
+    const xmpp = await getXmppClient();
+    attachReceiptListener(xmpp);                // ensure listener is active
 
-  //   await xmpp.send(stanza);
-  //   console.log("📤 Sent 1‑to‑1 to", toJid);
-  //   return { success: true };
-  // } catch (e) {
-  //   console.error("❌ sendXmppMessage:", e.message);
-  //   return { success: false, error: e.message };
-  // }
+    const bodyStr = typeof payload === 'object' ? JSON.stringify(payload)
+                                                : String(payload);
+    const toJid   = `${tutorId}@${xmppIp}`;
+    const msgId   = Date.now().toString();
+
+    const stanza = xml(
+      'message',
+      { to: toJid, type: 'chat', id: msgId },
+      xml('no-store',   { xmlns: HINTS_NS }),
+      xml('no-permanent',{ xmlns: HINTS_NS }),
+      xml('no-copy',    { xmlns: HINTS_NS }),
+      xml('body', {}, bodyStr),
+      xml('request', { xmlns: 'urn:xmpp:receipts' })
+    );
+
+    // ----- Promise that resolves true = receipt, false = timeout -----------
+    const delivered = await new Promise((resolve) => {
+      // store resolver so receipt handler can call it
+      const timer = setTimeout(() => {
+        pendingReceipts.delete(msgId);
+        resolve(false);                           // timeout → not delivered
+      }, 3000);
+
+      pendingReceipts.set(msgId, { timer, resolve });
+      xmpp.send(stanza).catch(() => { /* ignore here; handled below */ });
+    });
+    // -----------------------------------------------------------------------
+
+    if (delivered) {
+      console.log('📤 Sent & ACKed to', toJid);
+      return { success: true, delivered: true };
+    } else {
+      console.warn('⌛ No ACK within 3 s, falling back to FCM for', tutorId);
+      await notifyViaFcm(tutorId, payload.eventType, payload.data);
+      return { success: true, delivered: false, viaFcm: true };
+    }
+  } catch (err) {
+    console.error('❌ sendXmppMessage:', err.message);
+    return { success: false, error: err.message };
+  }
 };
 
 // utils/xmpp.js  (or wherever you keep it)
@@ -307,3 +324,23 @@ const notifyViaFcm = async (tutorId, eventType, data) => {
     return false;
   }
 };
+
+const attachReceiptListener = (xmpp) => {
+  if (attachReceiptListener.attached) return;
+  xmpp.on('stanza', (stanza) => {
+    if (!stanza.is('message')) return;
+    const received = stanza.getChild('received', 'urn:xmpp:receipts');
+    if (!received) return;
+
+    const msgId = received.attrs.id;
+    const entry = pendingReceipts.get(msgId);
+    if (entry) {
+      clearTimeout(entry.timer);
+      entry.resolve(true);          // resolve the Promise in sendXmppMessage
+      pendingReceipts.delete(msgId);
+      console.log(`📥 Delivery receipt for ${msgId} received from ${stanza.attrs.from}`);
+    }
+  });
+  attachReceiptListener.attached = true;
+};
+
