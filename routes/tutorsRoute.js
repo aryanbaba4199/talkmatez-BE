@@ -31,7 +31,7 @@ router.get('/calls/disconnected/:id', verifyToken, getDisconnectedCalls);
 
 
 // call action 
-router.post('/declineCall', xendCall)
+router.post('/declineCall', verifyToken, xendCall)
 
 
 

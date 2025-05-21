@@ -157,7 +157,6 @@ exports.getxmppusers = async () => {
 exports.sendXmppMessage = async (tutorId, payload) => {
   if (!tutorId || !payload)
     return { success: false, error: 'Missing tutorId / payload' };
-
   try {
     const xmpp = await getXmppClient();
     attachReceiptListener(xmpp);                // ensure listener is active

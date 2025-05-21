@@ -355,13 +355,14 @@ exports.updateFirstTime = async (req, res, next) => {
 
 exports.xendCall = async(req, res, next)=>{
   try{
-    const {userId, eventType, tutorId} = req.body;
+    const {userId, eventType} = req.body;
+    console.log('body havbe', req.body)
     const message = {
       eventType : eventType
     }
     await sendXmppMessage(userId, message)
-    await updateTutorStatus(tutorId, 'available')
-    await broadcastMessage(10, tutorId, 'available')
+    await updateTutorStatus(req.user._id, 'available')
+    await broadcastMessage(10, req.user._id, 'available')
     return res.status(200).json({message : 'Informed student about call end'})
   }catch(e){
     console.error('Error in xendCall', e)
