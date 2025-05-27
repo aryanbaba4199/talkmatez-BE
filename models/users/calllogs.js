@@ -11,7 +11,6 @@ const callSchema = new mongoose.Schema({
     }, 
     end : {
         type : String,
-        required: true
     }, 
     userId : {
         type: String,

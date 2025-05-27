@@ -1,9 +1,11 @@
 const Tutors = require("../../models/Tutors/tutors");
+const User = require("../../models/users/users");
 const CallLogs = require("../../models/users/calllogs");
 const Call = require("../../models/users/calllogs");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const { registeronxmpp, getxmppusers, sendXmppMessage, broadcastMessage } = require("../xmpp");
+const { updateCallTiming } = require("./CallFunctions");
 require("dotenv").config();
 
 const jwtKey = process.env.JWT_SECRET;
@@ -355,17 +357,39 @@ exports.updateFirstTime = async (req, res, next) => {
 
 exports.xendCall = async(req, res, next)=>{
   try{
-    const {userId, eventType} = req.body;
-    console.log('body havbe', req.body)
+    const {userId, eventType, initTimeId} = req.body;
+
     const message = {
       eventType : eventType
     }
+    await updateCallTiming(initTimeId, userId, eventType);
     await sendXmppMessage(userId, message)
     await updateTutorStatus(req.user._id, 'available')
+    res.status(200).json({message : 'Informed student about call end'})
     await broadcastMessage(10, req.user._id, 'available')
-    return res.status(200).json({message : 'Informed student about call end'})
+    return;
   }catch(e){
     console.error('Error in xendCall', e)
+  }
+}
+
+exports.acceptCall = async (req, res, next) => {
+  console.log('Accepting call with body:', req.body);
+
+  try{
+     const { channel, initTimeId} = req.body;
+    const timeRes = await updateCallTiming(initTimeId, channel, 2);
+    if(timeRes.success){
+      console.log('Call timing updated successfully');
+        res.status(200).json({ message: "Call accepted and timing updated" });
+    }else{
+      console.log('Failed to update call timing')
+        return res.status(500).json({ message: "Failed to update call timing" });
+    }
+  
+  }catch(e){
+    console.error('Error in acceptCall', e)
+    res.status(500).json({message : 'Server error'})
   }
 }
 
@@ -379,3 +403,6 @@ const updateTutorStatus = async (tid, status) => {
     return false;
   }
 };
+
+
+

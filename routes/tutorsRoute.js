@@ -4,7 +4,7 @@ const verifyToken = require('../utils/verification');
 
 const {getTutors, createTutor, updateTutor, login, updateToken, getTutor, dashboardData, updateRating, getTutorsList
     ,getDisconnectedCalls, getMissedCalls, getReceivedCalls, getRejectedCalls,
-    updateFirstTime,
+    updateFirstTime, acceptCall,
     xendCall
 } = require('../controller/Tutors/tutorsController');
 const {tutorCalllogs} = require('../controller/users/CallController');
@@ -32,6 +32,7 @@ router.get('/calls/disconnected/:id', verifyToken, getDisconnectedCalls);
 
 // call action 
 router.post('/declineCall', verifyToken, xendCall)
+router.post('/acceptCall', verifyToken, acceptCall);
 
 
 

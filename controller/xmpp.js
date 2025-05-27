@@ -67,7 +67,7 @@ const getXmppClient = async () => {
           const msgId = received.attrs.id;
           const from = stanza.attrs.from;
           console.log(`📥 Delivery receipt from ${from} for message id ${msgId}`);
-          // Here you can update your DB or application state to mark message delivered
+          
         }
       }
     });
@@ -98,7 +98,7 @@ const startHealthChecks = () => {
     } catch (err) {
       console.error("Health check failed:", err.message);
     }
-  }, 100000); // Every 30 seconds
+  }, 100000);
 };
 
 // Initialize connection when module loads
@@ -155,14 +155,14 @@ exports.getxmppusers = async () => {
 };
 
 exports.sendXmppMessage = async (tutorId, payload) => {
+  console.log("sendXmppMessage called with tutorId:", tutorId, "payload:", payload);
   if (!tutorId || !payload)
     return { success: false, error: 'Missing tutorId / payload' };
   try {
     const xmpp = await getXmppClient();
-    attachReceiptListener(xmpp);                // ensure listener is active
+    attachReceiptListener(xmpp);               
 
-    const bodyStr = typeof payload === 'object' ? JSON.stringify(payload)
-                                                : String(payload);
+    const bodyStr = typeof payload === 'object' ? JSON.stringify(payload) : String(payload);
     const toJid   = `${tutorId}@${xmppIp}`;
     const msgId   = Date.now().toString();
 
@@ -178,23 +178,24 @@ exports.sendXmppMessage = async (tutorId, payload) => {
 
     // ----- Promise that resolves true = receipt, false = timeout -----------
     const delivered = await new Promise((resolve) => {
-      // store resolver so receipt handler can call it
       const timer = setTimeout(() => {
         pendingReceipts.delete(msgId);
-        resolve(false);                           // timeout → not delivered
+        resolve(false);                 
       }, 3000);
-
       pendingReceipts.set(msgId, { timer, resolve });
-      xmpp.send(stanza).catch(() => { /* ignore here; handled below */ });
+      xmpp.send(stanza).catch(() => {});
     });
     // -----------------------------------------------------------------------
 
-    if (delivered) {
+    if (delivered ) {
       console.log('📤 Sent & ACKed to', toJid);
       return { success: true, delivered: true };
     } else {
       console.warn('⌛ No ACK within 3 s, falling back to FCM for', tutorId);
-      await notifyViaFcm(tutorId, payload.eventType, payload.data);
+      if(eventType===2){
+         await notifyViaFcm(tutorId, payload.eventType, payload.data);
+      }
+     
       return { success: true, delivered: false, viaFcm: true };
     }
   } catch (err) {
@@ -206,10 +207,10 @@ exports.sendXmppMessage = async (tutorId, payload) => {
 // utils/xmpp.js  (or wherever you keep it)
 exports.broadcastMessage = async (eventType, tid, msg) => {
   try {
-    // ⚡️ 1. Get a live XMPP connection
+  
     const xmpp = await getXmppClient();
 
-    // ⚡️ 2. Ask the Ejabberd REST API who’s online
+
     const res = await axios.post(
       `${API_BASE}/connected_users_info`,
       {},
@@ -221,7 +222,7 @@ exports.broadcastMessage = async (eventType, tid, msg) => {
       }
     );
 
-    // ⚡️ 3. Keep only “real” online users (skip admin + RN‑teacher app)
+   
     const sessions = res.data.filter(
       (u) =>
         u.status === "available" &&
@@ -237,7 +238,7 @@ exports.broadcastMessage = async (eventType, tid, msg) => {
     let delivered = 0;
     let failed = 0;
 
-    // ⚡️ 4. Broadcast the message
+
     await Promise.all(
       sessions.map(async (s, idx) => {
         const bareJid = s.jid.split("/")[0]; // Strip resource
@@ -276,7 +277,7 @@ exports.broadcastMessage = async (eventType, tid, msg) => {
 
 
 
-// Graceful shutdown handler
+
 process.on("SIGINT", async () => {
   if (xmppClient && isConnected) {
     await xmppClient.stop().catch(console.error);
@@ -304,6 +305,7 @@ const notifyViaFcm = async (tutorId, eventType, data) => {
         agoraToken: String(data.agoraToken),
         tid: String(data.tid),
         channel: String(data.channel),
+        initTimeId: String(data.initTimeId),
         userName: "Unknown",
       },
       

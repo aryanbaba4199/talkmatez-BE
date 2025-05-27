@@ -68,7 +68,7 @@ app.use("/admin", iamadmin);
 app.use("/generateToken", GenerateToken);
 app.use("/payments", verifyToken, payments)
 app.use("/cronjobs", utilRoutes);
-app.use("/calls", callroute)
+app.use("/calls", verifyToken, callroute)
 
 
 

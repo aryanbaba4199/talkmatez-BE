@@ -4,16 +4,17 @@ const Tutors = require('../models/Tutors/tutors');
 
 const verifyToken = async(req, res, next)=>{
     try{
+        console.log('Verifying token', req?.headers?.authorization);
         const token = req.headers.authorization.split(' ')[1];
         
         
         if(!token){
             return res.status(403).json({message: 'Token not provided'});
         }
-        console.log('token is',process.env.JWT_SECRET)
+     
 
         const decoded = jwt.decode(token, process.env.JWT_SECRET);
-        console.log(decoded)
+   
         let user;
         user = await User.findById(decoded.id).select('name mobile _id fcmToken coins silverCoins');
         if(!user){
@@ -23,7 +24,7 @@ const verifyToken = async(req, res, next)=>{
             return res.status(404).json({message: 'Unauthorized Access'});
         }
         req.user = user;
-        console.log('Access granted')
+    
         next();
     }catch(err){
         console.log('Error in verification',err)
