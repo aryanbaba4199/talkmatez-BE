@@ -194,20 +194,18 @@ exports.callDetails = async (req, res, next) => {
 
 exports.tutorCalllogs = async (req, res, next) => {
   const page = req.params.page || 1;
-  const limit = 100;
+  const limit = 1;
   const skip = (page - 1) * limit;
 
   try {
     const logs = await CallLogs.find({ secUserId: req.user._id })
-      .populate({
-        path: "userId",
-        model: User,
-        select: "name",
-      })
-      .sort({ start: -1 })
+      .sort({start : -1})
       .skip(skip)
       .limit(limit);
     if (logs.length > 0) {
+      for(call of logs){
+        console.log(call)
+      }
       return res.status(200).json(logs);
     } else {
       return res.status(404).json({ message: "No call logs found for this user" });
@@ -256,9 +254,9 @@ exports.createCall = async (req, res, next) => {
   const { agoraToken, channel, tid } = req.body;
   try {
     const tutor = await Tutors.findById(tid);
-    if(tutor.status !== 'available') {
-      return res.status(310).json({success : false, message : `Tutor is ${tutor.status}`});
-    }
+    // if(tutor.status !== 'available') {
+    //   return res.status(310).json({success : false, message : `Tutor is ${tutor.status}`});
+    // }
      const initTime = await startTime(channel, tid, 1);
      console.log('initTimeID', initTime._id);
     await sendXmppMessage(tid, {
@@ -284,12 +282,12 @@ exports.endCall = async (req, res, next) => {
       data: {tid},
     });
   
-    await updateCallTiming(initTimeId, req.user._id, eventType)
+    await updateCallTiming(initTimeId, req.user._id, parseInt(eventType))
     await updateTutorStatus(tid, 'available');
     res.status(200).json({ success: true, message: "Call ended successfully" });
     console.log('call ended successfully');
     await broadcastMessage(10, tid, 'available');
-    
+    return res.end()
   } catch (e) {
     next(e);
   }

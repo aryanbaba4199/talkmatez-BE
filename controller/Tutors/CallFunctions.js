@@ -65,7 +65,7 @@ exports.updateCallTiming = async (callId, userId, action) => {
   }
 
   const validActions = [1, 2, 3, 4, 5, 6, 7, 8, 10];
-  if (!validActions.includes(action)) {
+  if (!validActions.includes(parseInt(action))) {
     console.error(`Invalid action: ${action}`);
     throw new Error(`Invalid action: ${action}`);
   }
@@ -79,13 +79,7 @@ exports.updateCallTiming = async (callId, userId, action) => {
       console.error(`No call log found for ID: ${callId}`);
       throw new Error("Call log not found");
     }
-    console.log("Call log found:", {
-      callId,
-      start: callLog.start,
-      connection: callLog.connection,
-      action: callLog.action,
-      charge: callLog.charge,
-    });
+    console.log("Call log found");
 
     while (retries < MAX_RETRIES) {
       try {

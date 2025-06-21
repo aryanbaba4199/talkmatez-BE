@@ -48,8 +48,8 @@ const getXmppClient = async () => {
 
       xmppClient.on("error", (err) => {
         console.error("XMPP Error:", err);
-        isConnected = false;
-        connectionPromise = null;
+        // isConnected = false;
+        // connectionPromise = null;
       });
       xmppClient.on("offline", () => {
         console.log("XMPP Offline");
@@ -76,9 +76,9 @@ const getXmppClient = async () => {
       return xmppClient;
     } catch (err) {
       console.error("XMPP Connection Error:", err);
-      isConnected = false;
-      connectionPromise = null;
-      throw err;
+      // isConnected = false;
+      // connectionPromise = null;
+      // throw err;
     }
   })();
 

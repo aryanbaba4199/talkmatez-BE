@@ -4,7 +4,7 @@ const Tutors = require('../models/Tutors/tutors');
 
 const verifyToken = async(req, res, next)=>{
     try{
-        console.log('Verifying token', req?.headers?.authorization);
+      
         const token = req.headers.authorization.split(' ')[1];
         
         
@@ -17,6 +17,7 @@ const verifyToken = async(req, res, next)=>{
    
         let user;
         user = await User.findById(decoded.id).select('name mobile _id fcmToken coins silverCoins');
+        console.log('verify token of ', user?.mobile ?  "Studnet" : 'Teacher')
         if(!user){
             user = await Tutors.findById(decoded.userId);
         };
