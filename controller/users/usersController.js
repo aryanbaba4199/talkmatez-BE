@@ -29,85 +29,59 @@ const generateRandomUsername = (name) => {
 exports.createUser = async (req, res, next) => {
   const { formData } = req.body;
   const user = generateRandomUsername(req.body.name);
+  
   try {
-    const ejres = await axios.post(
-      `http://localhost:5280/api/register`,
-      {
-        user: user,
-        host: "localhost",
-        password: req.body.mobile,
-        role: "student",
-      },
-      {
-        auth: {
-          username: "admin@localhost",
-          password: "pass",
-        },
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    if (ejres.data.status === 0) {
-      console.log("Registered on xmpp", ejres.data);
-    } else {
-      console.log(ejres.data);
+    const existingUser = await User.findOne({ mobile: formData.mobile });
+
+    if (existingUser) {
+      return res.status(201).json({ message: "User Already Registered" });
     }
-  } catch (e) {
-    console.error("Error in creating xmpp", e);
+
+    const welcomePackage = await WelcomePackage.findOne();
+
+    if (!welcomePackage || !welcomePackage._id) {
+      return res
+        .status(400)
+        .json({ message: "No valid welcome package found" });
+    }
+
+    const dailyCoins = welcomePackage.coinValue / welcomePackage.expiry;
+
+    // Ensure the silverCoins array contains the required `type` field
+    formData.silverCoins = [
+      {
+        coins: dailyCoins,
+        expiry: 1,
+        time: Date.now(),
+        pkgId: new mongoose.Types.ObjectId(welcomePackage._id),
+        type: "welcome_bonus", // Ensure 'type' field is added
+      },
+    ];
+
+    formData.silverCoinExpiry = welcomePackage.expiry;
+
+    // Generate and assign a unique custom ID
+    const customId = await generateCustomId();
+    console.log("Generated UID:", customId);
+    formData.uid = customId;
+
+    const user = new User(formData);
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        mobile: user.mobile,
+      },
+      jwtKey,
+      { expiresIn: `${24 * 30}h` }
+    );
+
+    res.status(200).json({ token: token, user: user });
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
-  // try {
-  //   const existingUser = await User.findOne({ mobile: formData.mobile });
-
-  //   if (existingUser) {
-  //     return res.status(201).json({ message: "User Already Registered" });
-  //   }
-
-  //   const welcomePackage = await WelcomePackage.findOne();
-
-  //   if (!welcomePackage || !welcomePackage._id) {
-  //     return res
-  //       .status(400)
-  //       .json({ message: "No valid welcome package found" });
-  //   }
-
-  //   const dailyCoins = welcomePackage.coinValue / welcomePackage.expiry;
-
-  //   // Ensure the silverCoins array contains the required `type` field
-  //   formData.silverCoins = [
-  //     {
-  //       coins: dailyCoins,
-  //       expiry: 1,
-  //       time: Date.now(),
-  //       pkgId: new mongoose.Types.ObjectId(welcomePackage._id),
-  //       type: "welcome_bonus", // Ensure 'type' field is added
-  //     },
-  //   ];
-
-  //   formData.silverCoinExpiry = welcomePackage.expiry;
-
-  //   // Generate and assign a unique custom ID
-  //   const customId = await generateCustomId();
-  //   console.log("Generated UID:", customId);
-  //   formData.uid = customId;
-
-  //   const user = new User(formData);
-  //   await user.save();
-
-  //   const token = jwt.sign(
-  //     {
-  //       userId: user._id,
-  //       mobile: user.mobile,
-  //     },
-  //     jwtKey,
-  //     { expiresIn: `${24 * 30}h` }
-  //   );
-
-  //   res.status(200).json({ token: token, user: user });
-  // } catch (err) {
-  //   console.error(err);
-  //   next(err);
-  // }
 };
 
 const generateCustomId = async () => {
@@ -187,10 +161,7 @@ exports.login = async (req, res, next) => {
     if (user === null) {
       res.status(250).json({ message: "User not in database" });
     } else {
-      const xres = await getxmppusers();
-      if (xres.success) {
-        const xusers = xres.data;
-        const token = jwt.sign(
+      const token = jwt.sign(
           {
             id: user._id,
             mobile: user?.mobile,
@@ -198,23 +169,7 @@ exports.login = async (req, res, next) => {
           jwtKey,
           { expiresIn: `${24 * 30}h` }
         );
-        
-        if (!xusers.includes(user._id.toString())) {
-          const xreg = await registeronxmpp("register", {
-            user: user._id,
-            host: "104.197.117.162",
-            password: user.mobile,
-          });
-          if (xreg.registered) {
-            console.log("registered on xmpp");
-            res.status(200).json({ token, user});
-          }
-        } else {
-          res.status(200).json({ token, user });
-        }
-      } else {
-        res.status(400).json({ message: "Invalid credentials" });
-      }
+        return res.status(200).json({ token, user });
     }
   } catch (err) {
     console.error(err);

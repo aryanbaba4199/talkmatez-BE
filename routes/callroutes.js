@@ -4,8 +4,8 @@ const {createCall, endCall} = require('../controller/users/CallController')
 
 const router = express.Router();
 
-router.post('/startCall', createCall)
-router.post('/endCall', endCall)
+// router.post('/startCall', createCall)
+// router.post('/endCall', endCall)
 
 
 

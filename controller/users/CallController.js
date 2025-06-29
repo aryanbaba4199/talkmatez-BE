@@ -3,7 +3,6 @@ const CallLogs = require("../../models/users/calllogs");
 const Tutors = require("../../models/Tutors/tutors");
 const mongoose = require("mongoose");
 const {sendXmppMessage, broadcastMessage} = require('../xmpp')
-const {startTime, updateCallTiming,} = require('../Tutors/CallFunctions')
 
 exports.CallTiming = async (req) => {
   const formData = req.body;
@@ -194,18 +193,20 @@ exports.callDetails = async (req, res, next) => {
 
 exports.tutorCalllogs = async (req, res, next) => {
   const page = req.params.page || 1;
-  const limit = 1;
+  const limit = 100;
   const skip = (page - 1) * limit;
 
   try {
     const logs = await CallLogs.find({ secUserId: req.user._id })
-      .sort({start : -1})
+      .populate({
+        path: "userId",
+        model: User,
+        select: "name",
+      })
+      .sort({ start: -1 })
       .skip(skip)
       .limit(limit);
     if (logs.length > 0) {
-      for(call of logs){
-        console.log(call)
-      }
       return res.status(200).json(logs);
     } else {
       return res.status(404).json({ message: "No call logs found for this user" });
@@ -253,41 +254,30 @@ exports.fullLogs = async (req, res, next) => {
 exports.createCall = async (req, res, next) => {
   const { agoraToken, channel, tid } = req.body;
   try {
-    const tutor = await Tutors.findById(tid);
-    // if(tutor.status !== 'available') {
-    //   return res.status(310).json({success : false, message : `Tutor is ${tutor.status}`});
-    // }
-     const initTime = await startTime(channel, tid, 1);
-     console.log('initTimeID', initTime._id);
+    // 1‑to‑1 DM to tutor
     await sendXmppMessage(tid, {
       eventType: 1,
-      data: { agoraToken, channel, tid, initTimeId : initTime._id },
+      data: { agoraToken, channel, tid },
     });
-    
+    // mark tutor busy
     await updateTutorStatus(tid, 'busy');
     await broadcastMessage(10 , tid, 'busy');
-   
-    res.status(200).json({initTimeId : initTime._id});
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }
 };
 
 exports.endCall = async (req, res, next) => {
-  const { tid, initTimeId, eventType} = req.body;
-  console.log('ending call from student', req.body)          
+  const { tid} = req.body;          
   try {
-    await sendXmppMessage(`${tid}`, {
-      eventType: eventType,
-      data: {tid},
+    await sendXmppMessage(`${tid}@${process.env.XMPPIP}`, {
+      eventType: 3,
+      data: {tid },
     });
-  
-    await updateCallTiming(initTimeId, req.user._id, parseInt(eventType))
     await updateTutorStatus(tid, 'available');
-    res.status(200).json({ success: true, message: "Call ended successfully" });
-    console.log('call ended successfully');
     await broadcastMessage(10, tid, 'available');
-    return res.end()
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }

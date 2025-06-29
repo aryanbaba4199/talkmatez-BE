@@ -4,20 +4,18 @@ const Tutors = require('../models/Tutors/tutors');
 
 const verifyToken = async(req, res, next)=>{
     try{
-      
         const token = req.headers.authorization.split(' ')[1];
         
         
         if(!token){
             return res.status(403).json({message: 'Token not provided'});
         }
-     
+   
 
         const decoded = jwt.decode(token, process.env.JWT_SECRET);
-   
+ 
         let user;
         user = await User.findById(decoded.id).select('name mobile _id fcmToken coins silverCoins');
-        console.log('verify token of ', user?.mobile ?  "Studnet" : 'Teacher')
         if(!user){
             user = await Tutors.findById(decoded.userId);
         };

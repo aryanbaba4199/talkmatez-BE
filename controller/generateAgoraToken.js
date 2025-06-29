@@ -33,7 +33,7 @@ router.get('/', (req, res) => {
       role, 
       expiry,
     );
-  
+    console.log('Token generated:', token);
     return res.status(200).json({ token});
   } catch (err) {
     console.error('Error generating token:', err);

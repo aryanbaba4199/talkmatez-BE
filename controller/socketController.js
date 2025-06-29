@@ -261,7 +261,11 @@ const handleCallStart = async (io, socket, data) => {
       try {
         socket.to(tutorSocketId).emit("call_started", data);
         callTimeouts[data.tutorId] = setTimeout(() => handleFcmNotifier(data, socket, io), 3000);
-        waitingcall[data.tutorId] = setTimeout(() => handleCallNotAccepted(io, socket, data), 45000);
+        waitingcall[data.tutorId] = setTimeout(() => 
+    
+          handleCallNotAccepted(io, socket, data), 45000
+
+      );
         startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);
@@ -350,6 +354,7 @@ const handleTutorEndCall = (io, socket, data) => {
 };
 
 const handleCallAccepted = (io, socket, data) => {
+  console.log('Call accepted by tutor');
   try {
     handleRemoveWaiting(data);
     updateTime(data.userId, 2, false); // Not final, sets connection = true

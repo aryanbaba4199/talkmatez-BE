@@ -68,7 +68,7 @@ app.use("/admin", iamadmin);
 app.use("/generateToken", GenerateToken);
 app.use("/payments", verifyToken, payments)
 app.use("/cronjobs", utilRoutes);
-app.use("/calls", verifyToken, callroute)
+app.use("/calls", callroute)
 
 
 
@@ -79,6 +79,6 @@ app.get("/", (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-server.listen(process.env.PORT || 8080, () => {
-  console.log("Server running on port 8080");
+server.listen(process.env.PORT || 5000, () => {
+  console.log("Server running on port 5000");
 });

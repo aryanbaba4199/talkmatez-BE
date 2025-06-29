@@ -1,11 +1,9 @@
 const Tutors = require("../../models/Tutors/tutors");
-const User = require("../../models/users/users");
 const CallLogs = require("../../models/users/calllogs");
 const Call = require("../../models/users/calllogs");
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const { registeronxmpp, getxmppusers, sendXmppMessage, broadcastMessage } = require("../xmpp");
-const { updateCallTiming } = require("./CallFunctions");
 require("dotenv").config();
 
 const jwtKey = process.env.JWT_SECRET;
@@ -183,29 +181,8 @@ exports.login = async (req, res, next) => {
       { expiresIn: `${24 * 30}h` }
     );
 
-    // Check XMPP registration
-    const xres = await getxmppusers();
-    if (!xres.success) {
-      return res.status(500).json({ message: "Failed to fetch XMPP users" });
-    }
 
-    const xmppUsers = xres.data;
-    const userIdStr = tutor._id.toString();
-
-    if (!xmppUsers.includes(userIdStr)) {
-      const isreg = await registeronxmpp("register", {
-        user: userIdStr,
-        password: tutor.email, // ⚠️ You might want to use a secure random password instead
-      });
-
-      if (!isreg.registered) {
-        return res.status(500).json({ message: "Failed to register on XMPP" });
-      }
-
-      console.log("✅ Registered on XMPP:", userIdStr);
-    } else {
-      console.log("🟢 Already registered on XMPP:", userIdStr);
-    }
+    
 
     return res.status(200).json({ token, tutorData });
 
@@ -357,39 +334,17 @@ exports.updateFirstTime = async (req, res, next) => {
 
 exports.xendCall = async(req, res, next)=>{
   try{
-    const {userId, eventType, initTimeId} = req.body;
-
+    const {userId, eventType} = req.body;
+    console.log('body havbe', req.body)
     const message = {
       eventType : eventType
     }
-    await updateCallTiming(initTimeId, userId, eventType);
     await sendXmppMessage(userId, message)
     await updateTutorStatus(req.user._id, 'available')
-    res.status(200).json({message : 'Informed student about call end'})
     await broadcastMessage(10, req.user._id, 'available')
-    return;
+    return res.status(200).json({message : 'Informed student about call end'})
   }catch(e){
     console.error('Error in xendCall', e)
-  }
-}
-
-exports.acceptCall = async (req, res, next) => {
-  console.log('Accepting call with body:', req.body);
-
-  try{
-     const { channel, initTimeId} = req.body;
-    const timeRes = await updateCallTiming(initTimeId, channel, 2);
-    if(timeRes.success){
-      console.log('Call timing updated successfully');
-        res.status(200).json({ message: "Call accepted and timing updated" });
-    }else{
-      console.log('Failed to update call timing')
-        return res.status(500).json({ message: "Failed to update call timing" });
-    }
-  
-  }catch(e){
-    console.error('Error in acceptCall', e)
-    res.status(500).json({message : 'Server error'})
   }
 }
 
@@ -403,6 +358,3 @@ const updateTutorStatus = async (tid, status) => {
     return false;
   }
 };
-
-
-
