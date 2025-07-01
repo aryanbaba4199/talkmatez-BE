@@ -195,15 +195,21 @@ exports.login = async (req, res, next) => {
 
 exports.updateToken = async (req, res, next) => {
   const { token, tutorId } = req.body;
-  console.log("tutor Id is ", tutorId, token);
-  if (!tutorId) {
-    return res.status(400).json({ message: "Token and tutorId are required" });
+  console.log('registering tutor fcm id')
+
+  // Validate inputs
+  if (!tutorId || !token || typeof token !== 'string' || token.length < 10) {
+    console.error("Invalid token or tutorId:", { token, tutorId });
+    return res.status(400).json({ message: "Valid token and tutorId are required" });
   }
 
   try {
     const updatedTutor = await Tutors.findOneAndUpdate(
       { _id: tutorId },
-      { fcmToken: token },
+      { 
+        fcmToken: token,
+        fcmTokenTimestamp: new Date() // Add timestamp
+      },
       { new: true }
     );
 
@@ -212,8 +218,8 @@ exports.updateToken = async (req, res, next) => {
     }
     res.status(200).json({ message: "Token updated successfully" });
   } catch (error) {
-    console.error("Error updating token:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error updating token:", error.message, error.stack);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

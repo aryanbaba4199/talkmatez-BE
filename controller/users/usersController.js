@@ -15,6 +15,7 @@ const jwtKey = process.env.JWT_SECRET;
 exports.getuserbyid = async (req, res, next) => {
   try {
     const user = req.user;
+    console.log(user);
     res.status(200).json(user);
   } catch (err) {
     console.error(err);
@@ -27,14 +28,22 @@ const generateRandomUsername = (name) => {
 };
 
 exports.createUser = async (req, res, next) => {
-  const { formData } = req.body;
+  const  formData  = req.body;
   const user = generateRandomUsername(req.body.name);
   
   try {
     const existingUser = await User.findOne({ mobile: formData.mobile });
 
     if (existingUser) {
-      return res.status(201).json({ message: "User Already Registered" });
+      const token = jwt.sign(
+      {
+        id: existingUser._id,
+        mobile: existingUser.mobile,
+      },
+      jwtKey,
+      { expiresIn: `${24 * 30}h` }
+    );
+      return res.status(201).json({ user: existingUser, token :  token });
     }
 
     const welcomePackage = await WelcomePackage.findOne();
@@ -70,14 +79,14 @@ exports.createUser = async (req, res, next) => {
 
     const token = jwt.sign(
       {
-        userId: user._id,
-        mobile: user.mobile,
+        id: user._id,
+        mobile: user?.mobile,
       },
       jwtKey,
-      { expiresIn: `${24 * 30}h` }
+      { expiresIn: `${24 * 30 *12 }h` }
     );
 
-    res.status(200).json({ token: token, user: user });
+    res.status(200).json({ token, user });
   } catch (err) {
     console.error(err);
     next(err);
@@ -139,6 +148,7 @@ exports.deleteUser = async (req, res) => {
 exports.getUserDetails = async (req, res, next) => {
   try {
     const user = req.user;
+   
 
     if (!user) {
       res.status(404).json({ message: "User not found" });
@@ -167,7 +177,7 @@ exports.login = async (req, res, next) => {
             mobile: user?.mobile,
           },
           jwtKey,
-          { expiresIn: `${24 * 30}h` }
+          { expiresIn: `${24 * 30*12}h` }
         );
         return res.status(200).json({ token, user });
     }

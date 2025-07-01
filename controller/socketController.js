@@ -2,6 +2,7 @@ const admin = require("firebase-admin");
 const Tutors = require("../models/Tutors/tutors");
 const User = require("../models/users/users");
 const { CallTiming, updateCallTiming } = require("../controller/users/CallController");
+const mongoose = require("mongoose");
 
 const tutorSocketMap = {};
 const userSocketMap = {};
@@ -71,6 +72,7 @@ module.exports = (io) => {
     socket.on("call_accepted", (data) => handleCallAccepted(io, socket, data));
     socket.on("disconnect", (reason) => handleDisconnection(io, socket, reason));
     socket.on("call_acknowledged", (data) => handleCallAcknowledgment(data));
+    socket.on('i_am_not_on_call',(data)=> handleCallEnd(io, socket, data))
     socket.on('ping', (id) => null);
   });
 };
@@ -115,7 +117,7 @@ const startTime = async (data) => {
       charge: 0,
       connection: false, // Initially not connected
     };
-    console.log('start time is ', formData);
+   
 
     const callLog = await CallTiming({ body: formData });
     if (callLog) {
@@ -142,8 +144,8 @@ const handleOnCalls = (data) => {
 
 const handleEndCalls = (data) => {
   try {
-    delete activeCalls[data.tutorId];
-    delete waitingcall[data.tutorId];
+    delete activeCalls[data?.tutorId];
+    delete waitingcall[data?.tutorId];
   } catch (error) {
     console.error("Error in end calls", error);
   }
@@ -187,15 +189,17 @@ const storeDisconnection = async (logIs, who) => {
 const handleFcmNotifier = async (data, socket, io) => {
   try {
     const tutorFcmToken = await getTutorFcmToken(data.tutorId);
-    if (tutorFcmToken) {
-      console.log("Sending call notification via FCM", tutorFcmToken);
+    if (tutorFcmToken && data?.userName) {
+      console.log("Sending call notification via FCM", data);
       updateTutor(data?.tutorId, "busy");
       waitingcall[data.tutorId] = setTimeout(() => handleCallNotAccepted(io, socket, data), 15000);
       const fcmSent = await sendFcmNotification(tutorFcmToken, data);
       if (fcmSent) {
+     
         startTime(data);
         handleOnCalls(data);
         socket.broadcast.emit("busy", data.tutorId);
+        
         return;
       }
     } else {
@@ -240,52 +244,82 @@ const handleUserRegistration = async (userId, socket) => {
 };
 
 const handleCallStart = async (io, socket, data) => {
-  console.log("Call started");
+  console.log("Call started by : ", data?.userName);
   if (!data) return;
+
+  const session = await mongoose.startSession();
+
+
   try {
-    const tutor = await Tutors.findById(data.tutorId);
-    if (tutor.status !== 'available') {
+    session.startTransaction();
+    const tutor = await Tutors.findById(data.tutorId).session(session);
+    
+    if (!tutor) throw new Error("Tutor not found");
+
+    const isTutorBusy = waitingcall[data.tutorId];
+
+
+    // Check if tutor is already on call
+    if ((isTutorBusy) || tutor.status !== 'available') {
+      await session.abortTransaction();
       io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data);
+      io.to(tutorSocketMap[data.tutorId]).emit('are_you_on_a_call', data);
+      console.log(`teacher is " ${tutor.status} " in Database`)
       return;
     }
-    const isTutorBusy = activeCalls[data.tutorId];
-    if (isTutorBusy && tutor.status !== 'available') {
-      socket.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data);
-      return;
-    } else if (isTutorBusy && tutor.status === 'available') {
+
+    // Handle stale busy state if needed
+    if ((isTutorBusy) && tutor.status === 'available') {
       handleEndCalls(data);
+      await session.abortTransaction();
+      io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data);
+      io.to(tutorSocketMap[data.tutorId]).emit('are_you_on_a_call', data);
+       console.log(`teacher is " ${tutor.status} " in Map`)
+      return;
     }
+    
+
+    // Update tutor status in DB within session
+    tutor.status = 'busy';
+    await tutor.save({ session });
+
     const tutorSocketId = tutorSocketMap[data.tutorId];
 
     if (tutorSocketId) {
-      try {
-        socket.to(tutorSocketId).emit("call_started", data);
-        callTimeouts[data.tutorId] = setTimeout(() => handleFcmNotifier(data, socket, io), 3000);
-        waitingcall[data.tutorId] = setTimeout(() => 
-    
-          handleCallNotAccepted(io, socket, data), 45000
+      socket.to(tutorSocketId).emit("call_started", data);
 
+      // Mark as waiting
+      callTimeouts[data.tutorId] = setTimeout(() => handleFcmNotifier(data, socket, io), 3000);
+      waitingcall[data.tutorId] = setTimeout(() =>
+        handleCallNotAccepted(io, socket, data), 45000
       );
-        startTime(data);
-        handleOnCalls(data);
-        socket.broadcast.emit("busy", data.tutorId);
-        updateTutor(data.tutorId, "busy");
-      } catch (e) {
-        handleFcmNotifier(data, socket, io);
-        console.error(e);
-      }
+
+      startTime(data);
+      handleOnCalls(data);
+      socket.broadcast.emit("busy", data.tutorId);
+      updateTutor(data.tutorId, "busy"); // This one you can skip or optimize since status was already saved
     } else {
-      const tutor = await Tutors.findById(data.tutorId);
       if (tutor.status === 'offline') {
         io.to(userSocketMap[data.userId]).emit('tutor_offline', data);
       } else {
         handleFcmNotifier(data, socket, io);
       }
     }
+
+    await session.commitTransaction();
   } catch (error) {
-    console.error("Error in starting call", error);
-  }
+    await session.abortTransaction();
+    io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data);
+    if(session){
+       session?.endSession();
+       console.warn('conflication')
+       return;
+    }
+   
+    console.error("Error in starting call:", error);
+  } 
 };
+
 
 const handleStudentEarlyCallEnd = (io, socket, data) => {
   const tutorStatus = activeCalls[data.tutorId];
@@ -357,7 +391,7 @@ const handleCallAccepted = (io, socket, data) => {
   console.log('Call accepted by tutor');
   try {
     handleRemoveWaiting(data);
-    updateTime(data.userId, 2, false); // Not final, sets connection = true
+    updateTime(data.userId, 2, false); 
     const userSocketId = userSocketMap[data?.userId];
     updateTutorRank(data.tutorId);
     if (userSocketId) io.to(userSocketId).emit("call_accepted");
