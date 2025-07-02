@@ -18,24 +18,35 @@ async function getTutorFcmToken(tutorId) {
 }
 
 async function sendFcmNotification(tutorFcmToken, data) {
-  const message = {
-    token: tutorFcmToken,
-    data: {
-      agoraToken: `${data.agoraToken}`,
-      tutorId: `${data.tutorId}`,
-      userId: `${data.userId}`,
-      userName: `${data.userName}`,
-    },
-  };
-  try {
-    const res = await admin.messaging().send(message);
-    console.log('FCM message sent:', res, "token", tutorFcmToken);
-    return true;
-  } catch (error) {
-    console.error("Error sending FCM notification:", error);
-    return false;
-  }
-}
+   const message = {
+         token: tutorFcmToken,
+       data: {
+         agoraToken: `${data.agoraToken}`,
+         tutorId: `${data.tutorId}`,
+         userId: `${data.userId}`,
+         userName: `${data.userName}`,
+       },
+        android: { // Add Android-specific configuration
+          priority: 'high', // Set priority to high
+        },
+        apns: { 
+          headers: {
+            'apns-priority': '10', // High priority for iOS
+          },
+          
+        },
+      };
+      try {
+        const res = await admin.messaging().send(message);
+        console.log('FCM message sent:', res, "token",
+   tutorFcmToken);
+        return true;
+      } catch (error) {
+        console.error("Error sending FCM notification:",
+   error);
+        return false;
+      }
+    }
 
 async function handleSocketFallback(io, socket, data, event, fallbackEvent) {
   const tutorSocketId = tutorSocketMap[data.tutorId];
@@ -264,7 +275,7 @@ const handleCallStart = async (io, socket, data) => {
       await session.abortTransaction();
       io.to(userSocketMap[data.userId]).emit('tutor_is_on_call', data);
       io.to(tutorSocketMap[data.tutorId]).emit('are_you_on_a_call', data);
-      console.log(`teacher is " ${tutor.status} " in Database`)
+      console.log(`teacher is " ${tutor.status} " in Database`, data)
       return;
     }
 
