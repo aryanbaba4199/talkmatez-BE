@@ -25,6 +25,12 @@ async function sendFcmNotification(tutorFcmToken, data) {
          tutorId: `${data.tutorId}`,
          userId: `${data.userId}`,
          userName: `${data.userName}`,
+         // Add a flag to indicate this is an incoming call for the native service
+         isIncomingCall: "true"
+       },
+       notification: {
+        title: 'Incoming Call',
+        body: `You have a call from ${data.userName}`,
        },
         android: { // Add Android-specific configuration
           priority: 'high', // Set priority to high
@@ -83,7 +89,9 @@ module.exports = (io) => {
     socket.on("call_accepted", (data) => handleCallAccepted(io, socket, data));
     socket.on("disconnect", (reason) => handleDisconnection(io, socket, reason));
     socket.on("call_acknowledged", (data) => handleCallAcknowledgment(data));
-    socket.on('i_am_not_on_call',(data)=> handleCallEnd(io, socket, data))
+    socket.on('i_am_not_on_call',(data)=> {
+      // handleCallStart(io, socket, data)
+      handleCallEnd(io, socket, data)})
     socket.on('ping', (id) => null);
   });
 };
