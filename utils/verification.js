@@ -15,7 +15,7 @@ const verifyToken = async(req, res, next)=>{
         const decoded = jwt.decode(token, process.env.JWT_SECRET);
  
         let user;
-        user = await User.findById(decoded.id).select('name mobile _id fcmToken coins silverCoins');
+        user = await User.findById(decoded.id).select('name mobile _id uid primaryLanguage secondaryLanguage fcmToken createdAt coins silverCoins');
         if(!user){
             user = await Tutors.findById(decoded.userId);
         };

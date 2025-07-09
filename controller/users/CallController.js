@@ -54,11 +54,11 @@ exports.updateCallTiming = async ({ body }) => {
       }
 
       const startTime = new Date(startLog.start);
-      let callDuration = call ? (Date.now() - startTime) / 1000 : 0;
-      console.log("Call Duration (seconds):", callDuration);
+      const callDurationSeconds = call ? (Date.now() - startTime.getTime()) / 1000 : 0;
+      const roundedMinutes = Math.max(0, Math.ceil(callDurationSeconds / 60));
 
-      let coinDuration = Math.max(0, Math.ceil(callDuration / 60));
-      console.log("Coin Duration (minutes):", coinDuration);
+      console.log("Call Duration (seconds):", callDurationSeconds);
+      console.log("Coin Duration (rounded minutes):", roundedMinutes);
 
       const tutor = await Tutors.findById(data.secUserId).session(session);
       const user = await User.findById(data.userId).session(session);
@@ -69,20 +69,33 @@ exports.updateCallTiming = async ({ body }) => {
       }
 
       const tutorRate = tutor.rate;
-      const totalCharge = tutorRate * coinDuration;
+
+      // Calculate total available coins from silver + gold
+      let totalSilver = user.silverCoins.reduce((sum, coin) => sum + (coin.coins || 0), 0);
+      let totalCoins = totalSilver + user.coins;
+
+      // Calculate how many full minutes the user can afford
+      const maxAffordableMinutes = Math.floor(totalCoins / tutorRate);
+      const chargeableMinutes = Math.min(roundedMinutes, maxAffordableMinutes);
+
+      const totalCharge = tutorRate * chargeableMinutes;
+      console.log("User can afford (minutes):", maxAffordableMinutes);
+      console.log("Charging for (minutes):", chargeableMinutes);
       console.log("Total Charge:", totalCharge);
 
       let updatedUser = user;
       let updatedTutor = tutor;
 
-      // Only charge if the call was connected and this is the final update
+      // Deduct only if chargeable
       if (totalCharge > 0 && call && startLog.connection === true) {
         let remainingDeduction = totalCharge;
         let usedSilverCoins = 0;
-        let updatedSilverCoins = [...user.silverCoins];
+        let updatedSilverCoins = [...user?.silverCoins];
 
+        // Sort silver coins by oldest first
         updatedSilverCoins.sort((a, b) => new Date(a.time) - new Date(b.time));
 
+        // Deduct from silver first
         for (let i = 0; i < updatedSilverCoins.length && remainingDeduction > 0; i++) {
           let silverCoinEntry = updatedSilverCoins[i];
           if (silverCoinEntry.coins >= remainingDeduction) {
@@ -96,9 +109,11 @@ exports.updateCallTiming = async ({ body }) => {
           }
         }
 
-        updatedSilverCoins = updatedSilverCoins.filter(coin => coin.coins > 0);
+        // Filter out zero silver coin entries
+        updatedSilverCoins = updatedSilverCoins.filter(c => c.coins > 0);
         const usedGoldCoins = remainingDeduction;
 
+        // Update user
         updatedUser = await User.findByIdAndUpdate(
           data.userId,
           {
@@ -108,6 +123,7 @@ exports.updateCallTiming = async ({ body }) => {
           { new: true, session }
         );
 
+        // Update tutor
         updatedTutor = await Tutors.findByIdAndUpdate(
           data.secUserId,
           {
@@ -131,14 +147,15 @@ exports.updateCallTiming = async ({ body }) => {
         studentEndGoldCoin: updatedUser.coins || 0,
         studentEndSilverCoin: userEndSilverCoins,
         tutorEndSilverCoin: updatedTutor.silverCoins,
-        charge: (call && startLog.connection) ? totalCharge : 0, // Charge only if connected
+        charge: (call && startLog.connection) ? totalCharge : 0,
         action: action,
       };
 
+      // Set start time on action 2 (call accept)
       if (action === 2) {
         callUpdateData.start = currentTime;
-        callUpdateData.connection = true; // Mark as connected on acceptance
-        callUpdateData.charge = 0; // No charge yet
+        callUpdateData.connection = true;
+        callUpdateData.charge = 0;
       }
 
       await CallLogs.findByIdAndUpdate(data._id, callUpdateData, { new: true, session });
@@ -160,8 +177,10 @@ exports.updateCallTiming = async ({ body }) => {
       session.endSession();
     }
   }
+
   throw new Error(`Max retries (${MAX_RETRIES}) exceeded for call ID: ${data._id}`);
 };
+
 
 exports.callDetails = async (req, res, next) => {
   console.log('call details');

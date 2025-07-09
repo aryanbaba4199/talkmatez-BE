@@ -15,6 +15,7 @@ const jwtKey = process.env.JWT_SECRET;
 exports.getuserbyid = async (req, res, next) => {
   try {
     const user = req.user;
+    
     console.log(user);
     res.status(200).json(user);
   } catch (err) {
